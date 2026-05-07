@@ -1,0 +1,22 @@
+# Gradle / Android
+.gradle/
+.kotlin/
+**/build/
+local.properties
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+
+# OS and editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Keep versioned APK archives
+!version/
+!version/**
