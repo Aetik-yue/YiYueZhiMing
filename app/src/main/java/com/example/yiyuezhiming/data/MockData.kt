@@ -15,8 +15,8 @@ import java.time.LocalDate
 
 object MockData {
     val moods = listOf(
-        Mood("超级开心", AnimalFace.BunnyHappy, PrimaryPink),
-        Mood("开心", AnimalFace.CatSmile, SecondaryPink),
+        Mood("开心", AnimalFace.BunnyHappy, PrimaryPink),
+        Mood("甜甜", AnimalFace.CatSmile, SecondaryPink),
         Mood("平静", AnimalFace.BearCalm, CreamPink),
         Mood("想抱抱", AnimalFace.CatSad, LavenderMist),
         Mood("小生气", AnimalFace.BunnyPout, Color(0xFFFFD1DC)),
@@ -73,5 +73,5 @@ object MockData {
         Reminder(4, "第一次旅行纪念日", "旅行", LocalDate.of(2026, 10, 3), false)
     )
 
-    val albumFilters = listOf("全部", "导入", "甜蜜", "约会", "旅行", "日常", "纪念日", "最近7天", "本月")
+    val albumFilters = listOf("全部", "甜蜜", "约会", "旅行", "日常", "纪念日", "最近7天", "本月")
 }

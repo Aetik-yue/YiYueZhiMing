@@ -52,7 +52,8 @@ private data class ToolboxItem(
 @Composable
 fun ToolboxScreen(
     onOpenMemories: () -> Unit,
-    onOpenReminders: () -> Unit
+    onOpenReminders: () -> Unit,
+    onOpenMemo: () -> Unit
 ) {
     val items = listOf(
         ToolboxItem(
@@ -68,6 +69,13 @@ fun ToolboxScreen(
             colors = listOf(Color.White, Color(0xFFFFD6A5).copy(alpha = 0.58f), LavenderMist.copy(alpha = 0.72f)),
             icon = { KawaiiCalendarIcon(Modifier.fillMaxSize().padding(26.dp)) },
             onClick = onOpenReminders
+        ),
+        ToolboxItem(
+            title = "备忘录",
+            subtitle = "记下温柔小事",
+            colors = listOf(Color.White, CloudWhite, Color(0xFFFFE4F0)),
+            icon = { MemoIcon(Modifier.fillMaxSize().padding(24.dp)) },
+            onClick = onOpenMemo
         )
     )
 
@@ -87,6 +95,36 @@ fun ToolboxScreen(
                 item { Spacer(Modifier.height(86.dp)) }
             }
         }
+    }
+}
+
+@Composable
+private fun MemoIcon(modifier: Modifier = Modifier) {
+    Canvas(modifier) {
+        val paper = androidx.compose.ui.geometry.RoundRect(
+            left = size.width * 0.18f,
+            top = size.height * 0.1f,
+            right = size.width * 0.82f,
+            bottom = size.height * 0.88f,
+            radiusX = 24f,
+            radiusY = 24f
+        )
+        drawRoundRect(
+            color = CloudWhite,
+            topLeft = Offset(paper.left, paper.top),
+            size = androidx.compose.ui.geometry.Size(paper.width, paper.height),
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(24f, 24f)
+        )
+        repeat(4) { index ->
+            val y = size.height * (0.28f + index * 0.13f)
+            drawLine(
+                color = AccentHotPink.copy(alpha = 0.55f),
+                start = Offset(size.width * 0.3f, y),
+                end = Offset(size.width * 0.7f, y),
+                strokeWidth = 5f
+            )
+        }
+        drawCircle(PrimaryPink, radius = size.minDimension * 0.08f, center = Offset(size.width * 0.72f, size.height * 0.18f))
     }
 }
 

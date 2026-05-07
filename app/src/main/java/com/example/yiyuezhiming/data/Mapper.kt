@@ -2,9 +2,13 @@ package com.example.yiyuezhiming.data
 
 import androidx.compose.ui.graphics.Color
 import com.example.yiyuezhiming.data.local.MemoryEntity
+import com.example.yiyuezhiming.data.local.MemoEntity
+import com.example.yiyuezhiming.data.local.AlbumPhotoEntity
 import com.example.yiyuezhiming.data.local.ReminderEntity
+import com.example.yiyuezhiming.model.AlbumPhoto
 import com.example.yiyuezhiming.model.AnimalFace
 import com.example.yiyuezhiming.model.Memory
+import com.example.yiyuezhiming.model.Memo
 import com.example.yiyuezhiming.model.Mood
 import com.example.yiyuezhiming.model.Reminder
 
@@ -35,6 +39,48 @@ fun Memory.toEntity(): MemoryEntity = MemoryEntity(
     imageColorArgb = imageColorArgb,
     category = category,
     createdAt = createdAt
+)
+
+fun MemoEntity.toModel(): Memo = Memo(
+    id = id,
+    title = title,
+    content = content,
+    category = category,
+    isPinned = isPinned,
+    isDone = isDone,
+    createdAt = createdAt,
+    updatedAt = updatedAt
+)
+
+fun Memo.toEntity(): MemoEntity = MemoEntity(
+    id = id,
+    title = title,
+    content = content,
+    category = category,
+    isPinned = isPinned,
+    isDone = isDone,
+    createdAt = createdAt,
+    updatedAt = updatedAt
+)
+
+fun AlbumPhotoEntity.toModel(): AlbumPhoto = AlbumPhoto(
+    id = id,
+    category = category,
+    uri = uri,
+    memoryTag = memoryTag,
+    takenDate = takenDate,
+    createdAt = createdAt,
+    updatedAt = updatedAt
+)
+
+fun AlbumPhoto.toEntity(): AlbumPhotoEntity = AlbumPhotoEntity(
+    id = id,
+    category = category,
+    uri = uri,
+    memoryTag = memoryTag,
+    takenDate = takenDate,
+    createdAt = createdAt,
+    updatedAt = updatedAt
 )
 
 fun ReminderEntity.toModel(): Reminder = Reminder(

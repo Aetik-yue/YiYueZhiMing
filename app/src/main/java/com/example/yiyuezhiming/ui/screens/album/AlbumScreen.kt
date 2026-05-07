@@ -4,32 +4,37 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,35 +43,40 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.yiyuezhiming.data.MockData
-import com.example.yiyuezhiming.model.Memory
+import coil.compose.SubcomposeAsyncImage
+import com.example.yiyuezhiming.model.AlbumPhoto
 import com.example.yiyuezhiming.ui.animation.AnimatedCloudBackground
 import com.example.yiyuezhiming.ui.animation.kawaiiClickable
-import com.example.yiyuezhiming.ui.animation.StaggeredItem
-import com.example.yiyuezhiming.ui.components.AlbumPhotoCard
-import com.example.yiyuezhiming.ui.components.CatWithAlbum
 import com.example.yiyuezhiming.ui.components.CloudChip
 import com.example.yiyuezhiming.ui.components.EmptyStateView
 import com.example.yiyuezhiming.ui.components.HeartLoadingIndicator
+import com.example.yiyuezhiming.ui.components.KawaiiTextField
 import com.example.yiyuezhiming.ui.components.KawaiiTopBar
-import com.example.yiyuezhiming.ui.components.PawIcon
+import com.example.yiyuezhiming.ui.screens.memo.CategoryInputDialog
 import com.example.yiyuezhiming.ui.theme.AccentHotPink
+import com.example.yiyuezhiming.ui.theme.BackgroundPink
 import com.example.yiyuezhiming.ui.theme.CloudWhite
-import coil.compose.AsyncImage
+import com.example.yiyuezhiming.ui.theme.PrimaryPink
+import com.example.yiyuezhiming.ui.theme.SecondaryPink
+import java.time.LocalDate
 
 @Composable
 fun AlbumScreen(
     viewModel: AlbumViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
-    var selectedMemory by remember { mutableStateOf<Memory?>(null) }
+    var selectedPhoto by remember { mutableStateOf<AlbumPhoto?>(null) }
+    var showCategoryDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia()) { uris: List<Uri> ->
         viewModel.importPhotos(uris)
@@ -90,7 +100,7 @@ fun AlbumScreen(
                             text = if (state.isImporting) "导入中" else "导入",
                             selected = true,
                             onClick = {
-                                if (!state.isImporting) {
+                                if (!state.isImporting && state.selectedCategory.isNotBlank()) {
                                     photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                                 }
                             }
@@ -103,44 +113,98 @@ fun AlbumScreen(
             Column(Modifier.padding(padding).fillMaxSize()) {
                 Row(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        "把所有喜欢的瞬间拼成一座小小相册",
+                        "每个分类都有自己的照片，不再混在一起",
                         color = AccentHotPink,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.weight(1f)
                     )
                     if (state.isImporting) HeartLoadingIndicator(Modifier.size(24.dp))
-                    else PawIcon(Modifier.size(24.dp))
                 }
                 LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    items(MockData.albumFilters.size) { index ->
-                        val item = MockData.albumFilters[index]
-                        CloudChip(item, selected = state.filter == item, onClick = { viewModel.setFilter(item) })
+                    items(state.categories) { category ->
+                        CloudChip(category, selected = state.selectedCategory == category, onClick = { viewModel.setCategory(category) })
                     }
+                    item { CloudChip("+分类", selected = false, onClick = { showCategoryDialog = true }) }
                 }
                 Spacer(Modifier.height(14.dp))
-                Crossfade(state.filter, label = "album-filter") {
-                    when {
-                        state.isLoading -> Text("正在整理照片…", modifier = Modifier.padding(16.dp), color = AccentHotPink)
-                        state.error != null -> Text(state.error.orEmpty(), modifier = Modifier.padding(16.dp), color = MaterialTheme.colorScheme.error)
-                        state.filtered.isEmpty() -> EmptyStateView(
-                            title = "还没有照片哦",
-                            message = "去添加记忆并选择照片后，它们会安全复制到应用本地相册。",
-                            animal = { CatWithAlbum() },
-                            modifier = Modifier.fillMaxSize()
-                        )
-                        else -> LazyVerticalGrid(
-                            columns = GridCells.Fixed(2),
-                            contentPadding = PaddingValues(16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            items(state.filtered, key = { it.id }) { memory ->
-                                StaggeredItem(memory.id.toInt()) {
-                                    AlbumPhotoCard(memory, onClick = { selectedMemory = memory })
+                when {
+                    state.isLoading -> Text("正在整理照片…", modifier = Modifier.padding(16.dp), color = AccentHotPink)
+                    state.error != null -> Text(state.error.orEmpty(), modifier = Modifier.padding(16.dp), color = MaterialTheme.colorScheme.error)
+                    state.visiblePhotos.isEmpty() -> EmptyStateView(
+                        title = "这个分类还没有照片",
+                        message = "选择当前分类后导入照片，它们只会留在这个分类里。",
+                        buttonText = "导入照片",
+                        onButtonClick = {
+                            if (state.selectedCategory.isNotBlank()) {
+                                photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                            }
+                        },
+                        animal = { Box(Modifier.size(1.dp)) },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    else -> AlbumTimeline(
+                        photos = state.visiblePhotos,
+                        onPhotoClick = { selectedPhoto = it }
+                    )
+                }
+            }
+        }
+    }
+
+    selectedPhoto?.let { photo ->
+        AlbumPhotoPreview(
+            photo = photo,
+            onDismiss = { selectedPhoto = null },
+            onSaveTag = { viewModel.updateTag(photo, it) },
+            onDelete = {
+                viewModel.deletePhoto(photo)
+                selectedPhoto = null
+            }
+        )
+    }
+
+    if (showCategoryDialog) {
+        CategoryInputDialog(
+            title = "新增相册分类",
+            onDismiss = { showCategoryDialog = false },
+            onConfirm = {
+                viewModel.addCategory(it)
+                showCategoryDialog = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun AlbumTimeline(
+    photos: List<AlbumPhoto>,
+    onPhotoClick: (AlbumPhoto) -> Unit
+) {
+    val groups = photos.groupBy { it.takenDate }.toSortedMap(compareByDescending<LocalDate> { it })
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 12.dp, end = 16.dp, bottom = 92.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
+    ) {
+        groups.forEach { (date, datePhotos) ->
+            item(key = date.toString()) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    TimelineDate(date = date, modifier = Modifier.width(68.dp))
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        datePhotos.chunked(2).forEach { rowPhotos ->
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                rowPhotos.forEach { photo ->
+                                    AlbumPhotoTile(
+                                        photo = photo,
+                                        modifier = Modifier.weight(1f),
+                                        onClick = { onPhotoClick(photo) }
+                                    )
                                 }
+                                if (rowPhotos.size == 1) Spacer(Modifier.weight(1f))
                             }
                         }
                     }
@@ -148,20 +212,92 @@ fun AlbumScreen(
             }
         }
     }
+}
 
-    selectedMemory?.let { memory ->
-        AlbumPhotoPreview(
-            memory = memory,
-            onDismiss = { selectedMemory = null }
+@Composable
+private fun TimelineDate(date: LocalDate, modifier: Modifier = Modifier) {
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            "%02d.%02d".format(date.monthValue, date.dayOfMonth),
+            color = AccentHotPink,
+            fontWeight = FontWeight.ExtraBold
+        )
+        Text(
+            "${date.year}",
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.SemiBold
+        )
+        Spacer(Modifier.height(8.dp))
+        Box(
+            Modifier
+                .width(3.dp)
+                .height(96.dp)
+                .background(PrimaryPink.copy(alpha = 0.42f), RoundedCornerShape(999.dp))
         )
     }
 }
 
 @Composable
-private fun AlbumPhotoPreview(
-    memory: Memory,
-    onDismiss: () -> Unit
+private fun AlbumPhotoTile(
+    photo: AlbumPhoto,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
 ) {
+    Card(
+        modifier = modifier
+            .aspectRatio(1f)
+            .shadow(7.dp, RoundedCornerShape(18.dp), ambientColor = PrimaryPink.copy(alpha = 0.12f))
+            .kawaiiClickable(onClick = onClick),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(Color.Transparent)
+    ) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(Brush.linearGradient(listOf(CloudWhite, SecondaryPink.copy(alpha = 0.42f))))
+        ) {
+            SubcomposeAsyncImage(
+                model = photo.uri,
+                contentDescription = "相册照片",
+                modifier = Modifier
+                    .matchParentSize()
+                    .clip(RoundedCornerShape(18.dp)),
+                contentScale = ContentScale.Crop,
+                error = {
+                    Box(Modifier.matchParentSize(), contentAlignment = Alignment.Center) {
+                        Text("加载失败", color = AccentHotPink, fontWeight = FontWeight.Bold)
+                    }
+                }
+            )
+            if (photo.memoryTag.isNotBlank()) {
+                Text(
+                    photo.memoryTag,
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(8.dp)
+                        .background(Color.White.copy(alpha = 0.78f), RoundedCornerShape(999.dp))
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = AccentHotPink,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AlbumPhotoPreview(
+    photo: AlbumPhoto,
+    onDismiss: () -> Unit,
+    onSaveTag: (String) -> Unit,
+    onDelete: () -> Unit
+) {
+    var tag by remember(photo.id, photo.memoryTag) { mutableStateOf(photo.memoryTag) }
+    var confirmDelete by remember { mutableStateOf(false) }
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -175,36 +311,52 @@ private fun AlbumPhotoPreview(
             contentAlignment = Alignment.Center
         ) {
             Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = {}),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(28.dp))
-                        .background(CloudWhite.copy(alpha = 0.1f))
-                        .clickable(onClick = {})
+                        .height(480.dp)
+                        .clip(RoundedCornerShape(26.dp))
+                        .background(CloudWhite.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
                 ) {
-                    AsyncImage(
-                        model = memory.photoUri,
+                    SubcomposeAsyncImage(
+                        model = photo.uri,
                         contentDescription = "放大的相册照片",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(520.dp),
+                        modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Fit
                     )
                 }
-                Spacer(Modifier.height(18.dp))
+                Text(photo.dateText, color = Color.White.copy(alpha = 0.72f), fontWeight = FontWeight.SemiBold)
                 Box(
                     modifier = Modifier
-                        .background(CloudWhite.copy(alpha = 0.16f), RoundedCornerShape(20.dp))
-                        .padding(horizontal = 18.dp, vertical = 10.dp)
+                        .fillMaxWidth()
+                        .background(Color.White.copy(alpha = 0.95f), RoundedCornerShape(24.dp))
+                        .padding(14.dp)
                 ) {
-                    Text(
-                        text = "${memory.mood.label} · ${memory.dateText}",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        KawaiiTextField(tag, { tag = it }, "这张照片的小标签")
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                            TextButton(
+                                onClick = { confirmDelete = true },
+                                modifier = Modifier.weight(1f)
+                            ) { Text("删除照片", color = MaterialTheme.colorScheme.error) }
+                            TextButton(
+                                onClick = {
+                                    onSaveTag(tag)
+                                    onDismiss()
+                                },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .background(AccentHotPink, RoundedCornerShape(999.dp))
+                            ) { Text("保存标签", color = Color.White, fontWeight = FontWeight.Bold) }
+                        }
+                    }
                 }
             }
             Text(
@@ -221,4 +373,19 @@ private fun AlbumPhotoPreview(
             )
         }
     }
+
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text("删除这张照片？") },
+            text = { Text("删除后它会从当前相册分类中移除。") },
+            confirmButton = {
+                TextButton(onClick = onDelete) {
+                    Text("删除", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("取消") } }
+        )
+    }
 }
+

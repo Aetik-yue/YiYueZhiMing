@@ -19,6 +19,7 @@ import com.example.yiyuezhiming.ui.components.KawaiiBottomBar
 import com.example.yiyuezhiming.ui.screens.addmemory.AddMemoryScreen
 import com.example.yiyuezhiming.ui.screens.album.AlbumScreen
 import com.example.yiyuezhiming.ui.screens.home.HomeScreen
+import com.example.yiyuezhiming.ui.screens.memo.MemoScreen
 import com.example.yiyuezhiming.ui.screens.music.MusicPlayerScreen
 import com.example.yiyuezhiming.ui.screens.reminders.DateReminderScreen
 import com.example.yiyuezhiming.ui.screens.settings.SettingsScreen
@@ -78,8 +79,12 @@ fun AppNavGraph(
             composable(Route.Toolbox.path) {
                 ToolboxScreen(
                     onOpenMemories = { navController.navigate(Route.Home.path) },
-                    onOpenReminders = { navController.navigate(Route.Reminders.path) }
+                    onOpenReminders = { navController.navigate(Route.Reminders.path) },
+                    onOpenMemo = { navController.navigate(Route.Memo.path) }
                 )
+            }
+            composable(Route.Memo.path) {
+                MemoScreen()
             }
             composable(Route.Home.path) {
                 HomeScreen(onAddMemory = { navController.navigate(Route.AddMemory.path) })

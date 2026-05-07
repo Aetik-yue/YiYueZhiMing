@@ -25,12 +25,14 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -46,17 +48,29 @@ import com.example.yiyuezhiming.ui.theme.AccentHotPink
 import com.example.yiyuezhiming.ui.theme.CloudWhite
 import com.example.yiyuezhiming.ui.theme.LavenderMist
 import com.example.yiyuezhiming.ui.theme.PrimaryPink
+import java.time.LocalDate
+import java.time.format.DateTimeParseException
+import java.time.temporal.ChronoUnit
 
 @Composable
 fun SettingsScreen(
     darkMode: Boolean,
     onDarkModeChange: (Boolean) -> Unit
 ) {
+    val context = LocalContext.current
+    val prefs = remember(context) { context.getSharedPreferences("love_counter", android.content.Context.MODE_PRIVATE) }
+    val today = remember { LocalDate.now() }
+    var loveStartDateText by rememberSaveable {
+        mutableStateOf(prefs.getString("start_date", null) ?: today.toString())
+    }
     var showPrivacyDialog by rememberSaveable { mutableStateOf(false) }
     var showPasswordDialog by rememberSaveable { mutableStateOf(false) }
     var showAboutDialog by rememberSaveable { mutableStateOf(false) }
+    var showLoveDateDialog by rememberSaveable { mutableStateOf(false) }
     var passwordEnabled by rememberSaveable { mutableStateOf(false) }
     var pin by rememberSaveable { mutableStateOf("") }
+    val loveStartDate = runCatching { LocalDate.parse(loveStartDateText) }.getOrDefault(today)
+    val loveDays = (ChronoUnit.DAYS.between(loveStartDate, today) + 1).coerceAtLeast(1)
 
     AnimatedCloudBackground {
         Scaffold(
@@ -71,19 +85,10 @@ fun SettingsScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .background(Brush.horizontalGradient(listOf(PrimaryPink.copy(alpha = 0.55f), LavenderMist, CloudWhite)), RoundedCornerShape(28.dp))
-                        .padding(horizontal = 20.dp, vertical = 18.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text("设置", color = AccentHotPink, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                        Text("把这个小天地调成你喜欢的样子", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f))
-                    }
-                    SunMoonBunnies(Modifier.weight(0.48f))
-                }
+                LoveDaysCounterCard(
+                    days = loveDays,
+                    onClick = { showLoveDateDialog = true }
+                )
 
                 SettingsSectionTitle("外观设置")
                 SettingsCard(
@@ -135,6 +140,19 @@ fun SettingsScreen(
         )
     }
 
+    if (showLoveDateDialog) {
+        LoveStartDateDialog(
+            value = loveStartDateText,
+            today = today,
+            onDismiss = { showLoveDateDialog = false },
+            onSave = { value ->
+                loveStartDateText = value
+                prefs.edit().putString("start_date", value).apply()
+                showLoveDateDialog = false
+            }
+        )
+    }
+
     if (showPasswordDialog) {
         AlertDialog(
             onDismissRequest = { showPasswordDialog = false },
@@ -168,6 +186,118 @@ fun SettingsScreen(
             confirmButton = { TextButton(onClick = { showAboutDialog = false }) { Text("喜欢") } }
         )
     }
+}
+
+@Composable
+private fun LoveDaysCounterCard(
+    days: Long,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .kawaiiClickable(onClick = onClick),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(Color.Transparent)
+    ) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(
+                            PrimaryPink.copy(alpha = 0.58f),
+                            LavenderMist.copy(alpha = 0.86f),
+                            CloudWhite
+                        )
+                    )
+                )
+                .padding(horizontal = 22.dp, vertical = 20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    "我们已经相爱",
+                    color = AccentHotPink,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.ExtraBold
+                )
+                Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        "$days",
+                        color = AccentHotPink,
+                        style = MaterialTheme.typography.displaySmall,
+                        fontWeight = FontWeight.Black
+                    )
+                    Text(
+                        "天",
+                        color = AccentHotPink,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.ExtraBold,
+                        modifier = Modifier.padding(bottom = 5.dp)
+                    )
+                }
+                Text(
+                    "点一下可以修改开始日期",
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            SunMoonBunnies(Modifier.size(94.dp))
+        }
+    }
+}
+
+@Composable
+private fun LoveStartDateDialog(
+    value: String,
+    today: LocalDate,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit
+) {
+    var input by rememberSaveable(value) { mutableStateOf(value) }
+    var error by rememberSaveable { mutableStateOf<String?>(null) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("恋爱开始日") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = input,
+                    onValueChange = {
+                        input = it
+                        error = null
+                    },
+                    label = { Text("日期 yyyy-MM-dd") },
+                    singleLine = true
+                )
+                Text(
+                    "卡片表面不会显示这个日期，只会显示相爱天数。",
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f)
+                )
+                error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val parsed = try {
+                        LocalDate.parse(input.trim())
+                    } catch (_: DateTimeParseException) {
+                        null
+                    }
+                    when {
+                        parsed == null -> error = "请输入正确日期，例如 2026-05-08"
+                        parsed.isAfter(today) -> error = "开始日期不能晚于今天"
+                        else -> onSave(parsed.toString())
+                    }
+                }
+            ) { Text("保存") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } }
+    )
 }
 
 @Composable
