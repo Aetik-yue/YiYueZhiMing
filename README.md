@@ -1,8 +1,8 @@
 # 以越之名
 
-[![GitHub stars](https://img.shields.io/github/stars/Aetik/YiYueZhiMing?style=social)](https://github.com/Aetik/YiYueZhiMing/stargazers)
+[![GitHub stars](https://img.shields.io/github/stars/Aetik-yue/YiYueZhiMing?style=social)](https://github.com/Aetik-yue/YiYueZhiMing/stargazers)
 [![License: MIT](https://img.shields.io/badge/License-MIT-pink.svg)](LICENSE)
-[![Latest release](https://img.shields.io/github/v/release/Aetik/YiYueZhiMing?color=ff69b4)](https://github.com/Aetik/YiYueZhiMing/releases)
+[![Latest release](https://img.shields.io/github/v/release/Aetik-yue/YiYueZhiMing?color=ff69b4)](https://github.com/Aetik-yue/YiYueZhiMing/releases)
 
 以越之名是一款本地优先的情侣记忆 APP，用来收藏两个人的点滴、照片、重要日期和音乐瞬间。应用采用粉色、柔和、圆角的视觉风格，所有记录、导入照片和音乐副本都保存在本机。
 
@@ -48,7 +48,7 @@ app/build/outputs/apk/debug/app-debug.apk
 - `以越之名.apk`
 - `更新日志.md`
 
-推荐从 [GitHub Releases](https://github.com/Aetik/YiYueZhiMing/releases) 下载最新 APK。
+推荐从 [GitHub Releases](https://github.com/Aetik-yue/YiYueZhiMing/releases) 下载最新 APK。
 
 ## 发布新版本
 
