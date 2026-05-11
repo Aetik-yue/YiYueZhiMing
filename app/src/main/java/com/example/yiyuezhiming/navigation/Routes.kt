@@ -10,6 +10,10 @@ sealed class Route(val path: String) {
     data object FortuneHub : Route("fortune")
     data object DailySign : Route("daily-sign")
     data object Tarot : Route("tarot")
+    data object NovelBookshelf : Route("novel-bookshelf")
+    data object NovelReader : Route("novel-reader/{bookId}") {
+        fun create(bookId: String): String = "novel-reader/$bookId"
+    }
     data object AiChat : Route("ai-chat")
     data object Toolbox : Route("toolbox")
     data object Music : Route("music")

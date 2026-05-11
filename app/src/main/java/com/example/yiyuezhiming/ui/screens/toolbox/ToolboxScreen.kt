@@ -55,7 +55,8 @@ fun ToolboxScreen(
     onOpenReminders: () -> Unit,
     onOpenMemo: () -> Unit,
     onOpenAlbum: () -> Unit,
-    onOpenFortune: () -> Unit
+    onOpenFortune: () -> Unit,
+    onOpenNovel: () -> Unit
 ) {
     val items = listOf(
         ToolboxItem(
@@ -92,6 +93,13 @@ fun ToolboxScreen(
             colors = listOf(Color.White, LavenderMist.copy(alpha = 0.82f), PrimaryPink.copy(alpha = 0.32f)),
             icon = { FortuneIcon(Modifier.fillMaxSize().padding(24.dp)) },
             onClick = onOpenFortune
+        ),
+        ToolboxItem(
+            title = "小说",
+            subtitle = "私人阅读小书架",
+            colors = listOf(Color.White, CloudWhite, Color(0xFFFFF1C7)),
+            icon = { NovelIcon(Modifier.fillMaxSize().padding(24.dp)) },
+            onClick = onOpenNovel
         )
     )
 
@@ -153,6 +161,40 @@ private fun FortuneIcon(modifier: Modifier = Modifier) {
 }
 
 @Composable
+private fun NovelIcon(modifier: Modifier = Modifier) {
+    Canvas(modifier) {
+        drawRoundRect(
+            color = CloudWhite,
+            topLeft = Offset(size.width * 0.22f, size.height * 0.14f),
+            size = androidx.compose.ui.geometry.Size(size.width * 0.56f, size.height * 0.72f),
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(20f, 20f)
+        )
+        drawLine(
+            color = AccentHotPink.copy(alpha = 0.7f),
+            start = Offset(size.width * 0.5f, size.height * 0.18f),
+            end = Offset(size.width * 0.5f, size.height * 0.82f),
+            strokeWidth = 5f
+        )
+        repeat(4) { index ->
+            val y = size.height * (0.3f + index * 0.11f)
+            drawLine(
+                color = PrimaryPink.copy(alpha = 0.65f),
+                start = Offset(size.width * 0.32f, y),
+                end = Offset(size.width * 0.44f, y),
+                strokeWidth = 4f
+            )
+            drawLine(
+                color = PrimaryPink.copy(alpha = 0.65f),
+                start = Offset(size.width * 0.56f, y),
+                end = Offset(size.width * 0.68f, y),
+                strokeWidth = 4f
+            )
+        }
+        drawHeart(Offset(size.width * 0.72f, size.height * 0.24f), 9f, AccentHotPink)
+    }
+}
+
+@Composable
 private fun ToolboxCard(item: ToolboxItem) {
     Box(
         modifier = Modifier
@@ -210,4 +252,3 @@ private fun ToolboxCard(item: ToolboxItem) {
         }
     }
 }
-

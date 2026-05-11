@@ -12,11 +12,17 @@ import androidx.room.TypeConverters
         MemoCategoryEntity::class,
         AlbumPhotoEntity::class,
         AlbumCategoryEntity::class,
+        AiAssistantEntity::class,
+        AiChatSessionEntity::class,
         AiChatMessageEntity::class,
         FortuneRecordEntity::class,
-        DeepSeekRequestLogEntity::class
+        DeepSeekRequestLogEntity::class,
+        BookEntity::class,
+        ChapterEntity::class,
+        BookmarkEntity::class,
+        ReadingStatEntity::class
     ],
-    version = 3,
+    version = 6,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -28,4 +34,5 @@ abstract class YiYueDatabase : RoomDatabase() {
     abstract fun aiChatDao(): AiChatDao
     abstract fun fortuneDao(): FortuneDao
     abstract fun deepSeekLogDao(): DeepSeekLogDao
+    abstract fun bookDao(): BookDao
 }

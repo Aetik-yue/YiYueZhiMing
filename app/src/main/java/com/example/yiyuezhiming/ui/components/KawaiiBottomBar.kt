@@ -42,7 +42,7 @@ fun KawaiiBottomBar(
 ) {
     val items = listOf(
         BottomNavItem(Route.Toolbox, "百宝箱") { ToolboxIcon(Modifier.size(if (it) 30.dp else 28.dp)) },
-        BottomNavItem(Route.AiChat, "AI") { AppLogoIcon(Modifier.size(if (it) 30.dp else 28.dp)) },
+        BottomNavItem(Route.AiChat, "小助手") { AppLogoIcon(Modifier.size(if (it) 30.dp else 28.dp)) },
         BottomNavItem(Route.Music, "音乐") { MusicCatIcon(Modifier.size(if (it) 30.dp else 28.dp)) },
         BottomNavItem(Route.Settings, "设置") { CatGearIcon(Modifier.size(if (it) 30.dp else 28.dp)) }
     )
@@ -73,7 +73,9 @@ fun KawaiiBottomBar(
                     Route.Album.path,
                     Route.FortuneHub.path,
                     Route.DailySign.path,
-                    Route.Tarot.path
+                    Route.Tarot.path,
+                    Route.NovelBookshelf.path,
+                    Route.NovelReader.path
                 )
                 else -> currentRoute == item.route.path
             }
@@ -108,4 +110,3 @@ fun KawaiiBottomBar(
         }
     }
 }
-

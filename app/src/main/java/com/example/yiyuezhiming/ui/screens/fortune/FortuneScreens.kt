@@ -46,6 +46,7 @@ import com.example.yiyuezhiming.model.FortuneRecord
 import com.example.yiyuezhiming.ui.animation.AnimatedCloudBackground
 import com.example.yiyuezhiming.ui.animation.kawaiiClickable
 import com.example.yiyuezhiming.ui.components.KawaiiTopBar
+import com.example.yiyuezhiming.ui.components.MarkdownText
 import com.example.yiyuezhiming.ui.theme.AccentHotPink
 import com.example.yiyuezhiming.ui.theme.CloudWhite
 import com.example.yiyuezhiming.ui.theme.LavenderMist
@@ -235,10 +236,34 @@ private fun FortuneRecordContent(record: FortuneRecord, compact: Boolean = false
         Text("关键词：${record.keywords}", color = AccentHotPink.copy(alpha = 0.78f), style = MaterialTheme.typography.bodySmall)
         if (!compact) {
             Spacer(Modifier.height(4.dp))
-            Text(record.interpretation, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodyMedium)
+            MarkdownText(
+                markdown = record.interpretation,
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.bodyMedium
+            )
         } else {
-            Text(record.interpretation.take(80), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f), style = MaterialTheme.typography.bodySmall)
+            Text(
+                record.interpretation.markdownSummary().take(80),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f),
+                style = MaterialTheme.typography.bodySmall
+            )
         }
     }
 }
 
+private fun String.markdownSummary(): String =
+    lineSequence()
+        .map { line ->
+            line.trim()
+                .removePrefix("### ")
+                .removePrefix("## ")
+                .removePrefix("# ")
+                .removePrefix("> ")
+                .removePrefix("- ")
+                .replace(Regex("""^\d+\.\s+"""), "")
+                .replace("**", "")
+                .replace("*", "")
+                .replace("`", "")
+        }
+        .filter { it.isNotBlank() && !it.startsWith("```") }
+        .joinToString(" ")

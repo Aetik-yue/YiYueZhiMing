@@ -25,6 +25,8 @@ import com.example.yiyuezhiming.ui.screens.fortune.TarotScreen
 import com.example.yiyuezhiming.ui.screens.home.HomeScreen
 import com.example.yiyuezhiming.ui.screens.memo.MemoScreen
 import com.example.yiyuezhiming.ui.screens.music.MusicPlayerScreen
+import com.example.yiyuezhiming.ui.screens.novel.NovelBookshelfScreen
+import com.example.yiyuezhiming.ui.screens.novel.NovelReaderScreen
 import com.example.yiyuezhiming.ui.screens.reminders.DateReminderScreen
 import com.example.yiyuezhiming.ui.screens.settings.SettingsScreen
 import com.example.yiyuezhiming.ui.screens.splash.SplashScreen
@@ -46,6 +48,7 @@ fun AppNavGraph(
         Route.FortuneHub.path,
         Route.DailySign.path,
         Route.Tarot.path,
+        Route.NovelBookshelf.path,
         Route.Toolbox.path,
         Route.AiChat.path,
         Route.Music.path,
@@ -91,7 +94,8 @@ fun AppNavGraph(
                     onOpenReminders = { navController.navigate(Route.Reminders.path) },
                     onOpenMemo = { navController.navigate(Route.Memo.path) },
                     onOpenAlbum = { navController.navigate(Route.Album.path) },
-                    onOpenFortune = { navController.navigate(Route.FortuneHub.path) }
+                    onOpenFortune = { navController.navigate(Route.FortuneHub.path) },
+                    onOpenNovel = { navController.navigate(Route.NovelBookshelf.path) }
                 )
             }
             composable(Route.FortuneHub.path) {
@@ -108,6 +112,12 @@ fun AppNavGraph(
             }
             composable(Route.Memo.path) {
                 MemoScreen()
+            }
+            composable(Route.NovelBookshelf.path) {
+                NovelBookshelfScreen(onOpenReader = { navController.navigate(Route.NovelReader.create(it)) })
+            }
+            composable(Route.NovelReader.path) {
+                NovelReaderScreen(onBack = { navController.popBackStack() })
             }
             composable(Route.AiChat.path) {
                 AiChatScreen()

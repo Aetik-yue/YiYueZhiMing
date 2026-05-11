@@ -51,7 +51,11 @@ class FortuneRepository @Inject constructor(
             签文：${sign.poem}
             关键词：${sign.keywords.joinToString("、")}
 
-            请输出：整体运势、感情、行动建议、今日提醒，语言温柔但专业。
+            请使用 Markdown 输出，严格按下面结构组织，语言温柔但专业，不要输出表格：
+            ## 整体运势
+            ## 感情提示
+            ## 行动建议
+            ## 今日提醒
         """.trimIndent()
         return when (val result = deepSeekRepository.complete("daily_sign", listOf(DeepSeekMessage("user", prompt)))) {
             is DeepSeekResult.Success -> {
@@ -87,7 +91,11 @@ class FortuneRepository @Inject constructor(
             方向：$orientation
             基础牌义：$meaning
 
-            请输出：整体能量、感情提示、行动建议、今日提醒。语言要适合情侣陪伴类 App。
+            请使用 Markdown 输出，严格按下面结构组织，语言要适合情侣陪伴类 App，不要输出表格：
+            ## 整体运势
+            ## 感情提示
+            ## 行动建议
+            ## 今日提醒
         """.trimIndent()
         return when (val result = deepSeekRepository.complete("tarot", listOf(DeepSeekMessage("user", prompt)))) {
             is DeepSeekResult.Success -> {
@@ -168,4 +176,3 @@ private val tarotDeck: List<TarotCard> =
             TarotCard("$suit$rank", "小阿尔卡那", "$base，第${index + 1}阶段的推进", "$base 需要整理，先处理卡住的部分")
         }
     }
-
