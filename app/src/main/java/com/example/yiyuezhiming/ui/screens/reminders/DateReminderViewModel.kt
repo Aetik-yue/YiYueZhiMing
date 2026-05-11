@@ -17,6 +17,7 @@ import javax.inject.Inject
 
 data class DateReminderUiState(
     val reminders: List<Reminder> = emptyList(),
+    val editingReminder: Reminder? = null,
     val title: String = "",
     val type: String = "纪念日",
     val dateText: String = LocalDate.now().toString(),
@@ -45,6 +46,34 @@ class DateReminderViewModel @Inject constructor(
     fun onDateTextChanged(value: String) = _uiState.update { it.copy(dateText = value, error = null) }
     fun onEnabledChanged(value: Boolean) = _uiState.update { it.copy(enabled = value) }
 
+    fun startAdd() = _uiState.update {
+        it.copy(
+            editingReminder = null,
+            title = "",
+            type = "纪念日",
+            dateText = LocalDate.now().toString(),
+            enabled = true,
+            error = null
+        )
+    }
+
+    fun startEdit(reminder: Reminder) = _uiState.update {
+        it.copy(
+            editingReminder = reminder,
+            title = reminder.title,
+            type = reminder.type,
+            dateText = reminder.date.toString(),
+            enabled = reminder.isEnabled,
+            error = null
+        )
+    }
+
+    fun deleteReminder(reminder: Reminder) {
+        viewModelScope.launch {
+            repository.deleteReminder(reminder.id)
+        }
+    }
+
     fun addReminder(onSaved: () -> Unit) {
         val state = _uiState.value
         val date = runCatching { LocalDate.parse(state.dateText) }.getOrNull()
@@ -57,15 +86,27 @@ class DateReminderViewModel @Inject constructor(
             return
         }
         viewModelScope.launch {
-            repository.addReminder(
+            val editing = state.editingReminder
+            repository.saveReminder(
                 Reminder(
+                    id = editing?.id ?: 0,
                     title = state.title.trim(),
                     type = state.type,
                     date = date,
-                    isEnabled = state.enabled
+                    isEnabled = state.enabled,
+                    createdAt = editing?.createdAt ?: System.currentTimeMillis()
                 )
             )
-            _uiState.update { it.copy(title = "", type = "纪念日", dateText = LocalDate.now().toString(), enabled = true, error = null) }
+            _uiState.update {
+                it.copy(
+                    editingReminder = null,
+                    title = "",
+                    type = "纪念日",
+                    dateText = LocalDate.now().toString(),
+                    enabled = true,
+                    error = null
+                )
+            }
             onSaved()
         }
     }

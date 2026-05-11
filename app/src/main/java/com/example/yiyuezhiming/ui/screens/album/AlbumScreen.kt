@@ -111,18 +111,17 @@ fun AlbumScreen(
             snackbarHost = { SnackbarHost(snackbarHostState) }
         ) { padding ->
             Column(Modifier.padding(padding).fillMaxSize()) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        "每个分类都有自己的照片，不再混在一起",
-                        color = AccentHotPink,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.weight(1f)
-                    )
-                    if (state.isImporting) HeartLoadingIndicator(Modifier.size(24.dp))
+                if (state.isImporting) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        HeartLoadingIndicator(Modifier.size(24.dp))
+                        Text("导入中…", color = AccentHotPink, fontWeight = FontWeight.SemiBold)
+                    }
+                } else {
+                    Spacer(Modifier.height(10.dp))
                 }
                 LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     items(state.categories) { category ->
@@ -388,4 +387,3 @@ private fun AlbumPhotoPreview(
         )
     }
 }
-

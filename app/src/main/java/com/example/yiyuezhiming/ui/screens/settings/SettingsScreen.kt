@@ -23,6 +23,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -34,8 +35,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.yiyuezhiming.BuildConfig
 import com.example.yiyuezhiming.ui.animation.AnimatedCloudBackground
 import com.example.yiyuezhiming.ui.animation.kawaiiClickable
 import com.example.yiyuezhiming.ui.components.AppLogoIcon
@@ -55,8 +60,10 @@ import java.time.temporal.ChronoUnit
 @Composable
 fun SettingsScreen(
     darkMode: Boolean,
-    onDarkModeChange: (Boolean) -> Unit
+    onDarkModeChange: (Boolean) -> Unit,
+    deepSeekViewModel: DeepSeekSettingsViewModel = hiltViewModel()
 ) {
+    val deepSeekState by deepSeekViewModel.state.collectAsState()
     val context = LocalContext.current
     val prefs = remember(context) { context.getSharedPreferences("love_counter", android.content.Context.MODE_PRIVATE) }
     val today = remember { LocalDate.now() }
@@ -67,6 +74,7 @@ fun SettingsScreen(
     var showPasswordDialog by rememberSaveable { mutableStateOf(false) }
     var showAboutDialog by rememberSaveable { mutableStateOf(false) }
     var showLoveDateDialog by rememberSaveable { mutableStateOf(false) }
+    var showDeepSeekDialog by rememberSaveable { mutableStateOf(false) }
     var passwordEnabled by rememberSaveable { mutableStateOf(false) }
     var pin by rememberSaveable { mutableStateOf("") }
     val loveStartDate = runCatching { LocalDate.parse(loveStartDateText) }.getOrDefault(today)
@@ -119,10 +127,18 @@ fun SettingsScreen(
                     onClick = { showPrivacyDialog = true }
                 )
 
+                SettingsSectionTitle("AI 设置")
+                SettingsCard(
+                    title = "DeepSeek API Key",
+                    subtitle = if (deepSeekState.hasKey) "已保存 ${deepSeekState.maskedKey}" else "用于 AI 聊天、签运和塔罗解读",
+                    leading = { AppLogoIcon(Modifier.size(42.dp)) },
+                    onClick = { showDeepSeekDialog = true }
+                )
+
                 SettingsSectionTitle("应用信息")
                 SettingsCard(
                     title = "关于我们",
-                    subtitle = "以越之名 · 1.0",
+                    subtitle = "以越之名 · ${BuildConfig.VERSION_NAME}",
                     leading = { AppLogoIcon(Modifier.size(42.dp)) },
                     onClick = { showAboutDialog = true }
                 )
@@ -178,14 +194,89 @@ fun SettingsScreen(
         )
     }
 
+    if (showDeepSeekDialog) {
+        DeepSeekApiKeyDialog(
+            state = deepSeekState,
+            onDismiss = { showDeepSeekDialog = false },
+            onSave = {
+                deepSeekViewModel.saveKey(it)
+                showDeepSeekDialog = false
+            },
+            onClear = { deepSeekViewModel.clearKey() }
+        )
+    }
+
     if (showAboutDialog) {
         AlertDialog(
             onDismissRequest = { showAboutDialog = false },
             title = { Text("以越之名") },
-            text = { Text("版本 1.0\n一款为两个人保留温柔瞬间的本地情侣日记。") },
+            text = { Text("版本 ${BuildConfig.VERSION_NAME}\n一款为两个人保留温柔瞬间的本地情侣日记。") },
             confirmButton = { TextButton(onClick = { showAboutDialog = false }) { Text("喜欢") } }
         )
     }
+}
+
+@Composable
+private fun DeepSeekApiKeyDialog(
+    state: DeepSeekSettingsState,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit,
+    onClear: () -> Unit
+) {
+    var input by rememberSaveable { mutableStateOf("") }
+    var visible by rememberSaveable { mutableStateOf(false) }
+    var error by rememberSaveable { mutableStateOf<String?>(null) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("DeepSeek API Key") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (state.hasKey) {
+                    Text(
+                        "当前已保存：${state.maskedKey}",
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.68f)
+                    )
+                }
+                OutlinedTextField(
+                    value = input,
+                    onValueChange = {
+                        input = it.trim()
+                        error = null
+                    },
+                    label = { Text("粘贴 sk- 开头的 API Key") },
+                    singleLine = true,
+                    visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation()
+                )
+                TextButton(onClick = { visible = !visible }) {
+                    Text(if (visible) "隐藏密钥" else "显示密钥")
+                }
+                Text(
+                    "密钥只会加密保存在本机，用于 AI 聊天、签运和塔罗解读。AI 内容仅供娱乐与陪伴参考。",
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f)
+                )
+                error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    if (input.length < 12) {
+                        error = "请输入完整的 API Key"
+                    } else {
+                        onSave(input)
+                    }
+                }
+            ) { Text("保存") }
+        },
+        dismissButton = {
+            Row {
+                if (state.hasKey) {
+                    TextButton(onClick = onClear) { Text("清除") }
+                }
+                TextButton(onClick = onDismiss) { Text("取消") }
+            }
+        }
+    )
 }
 
 @Composable
@@ -238,12 +329,6 @@ private fun LoveDaysCounterCard(
                         modifier = Modifier.padding(bottom = 5.dp)
                     )
                 }
-                Text(
-                    "点一下可以修改开始日期",
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
             }
             SunMoonBunnies(Modifier.size(94.dp))
         }

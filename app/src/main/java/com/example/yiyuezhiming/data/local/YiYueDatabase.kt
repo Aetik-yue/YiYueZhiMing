@@ -11,9 +11,12 @@ import androidx.room.TypeConverters
         MemoEntity::class,
         MemoCategoryEntity::class,
         AlbumPhotoEntity::class,
-        AlbumCategoryEntity::class
+        AlbumCategoryEntity::class,
+        AiChatMessageEntity::class,
+        FortuneRecordEntity::class,
+        DeepSeekRequestLogEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -22,4 +25,7 @@ abstract class YiYueDatabase : RoomDatabase() {
     abstract fun reminderDao(): ReminderDao
     abstract fun memoDao(): MemoDao
     abstract fun albumDao(): AlbumDao
+    abstract fun aiChatDao(): AiChatDao
+    abstract fun fortuneDao(): FortuneDao
+    abstract fun deepSeekLogDao(): DeepSeekLogDao
 }

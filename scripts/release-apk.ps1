@@ -22,6 +22,7 @@ $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 $gradle = Join-Path $env:USERPROFILE ".gradle\wrapper\dists\gradle-8.12-bin\cetblhg4pflnnks72fxwobvgv\gradle-8.12\bin\gradle.bat"
 $jdk = Join-Path $env:USERPROFILE ".jdks\temurin-24"
 $apkSource = Join-Path $repoRoot "app\build\outputs\apk\debug\app-debug.apk"
+$appGradle = Join-Path $repoRoot "app\build.gradle.kts"
 $versionDir = Join-Path $repoRoot "version\$Version"
 $apkTarget = Join-Path $versionDir "$appName.apk"
 $releaseUploadTarget = Join-Path $versionDir "YiYueZhiMing-$Version.apk"
@@ -55,6 +56,13 @@ $env:JAVA_HOME = $jdk
 
 Push-Location $repoRoot
 try {
+    $parts = $Version.Split(".")
+    $versionCode = ([int]$parts[0] * 100) + ([int]$parts[1] * 10) + [int]$parts[2]
+    $gradleText = Get-Content -LiteralPath $appGradle -Raw
+    $gradleText = [regex]::Replace($gradleText, 'versionCode\s*=\s*\d+', "versionCode = $versionCode")
+    $gradleText = [regex]::Replace($gradleText, 'versionName\s*=\s*"[^"]+"', "versionName = `"$Version`"")
+    Set-Content -LiteralPath $appGradle -Value $gradleText -Encoding UTF8
+
     & $gradle ":app:assembleDebug"
     if ($LASTEXITCODE -ne 0) {
         throw "Gradle build failed"

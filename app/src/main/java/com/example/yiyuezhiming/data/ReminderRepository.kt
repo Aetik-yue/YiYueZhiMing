@@ -16,12 +16,14 @@ class ReminderRepository @Inject constructor(
     fun observeReminders(): Flow<List<Reminder>> =
         dao.observeReminders().map { rows -> rows.map { it.toModel() } }
 
-    suspend fun addReminder(reminder: Reminder): Long {
+    suspend fun saveReminder(reminder: Reminder): Long {
         val id = dao.insert(reminder.toEntity())
         val saved = reminder.copy(id = id)
         if (saved.isEnabled) scheduler.schedule(saved) else scheduler.cancel(id)
         return id
     }
+
+    suspend fun addReminder(reminder: Reminder): Long = saveReminder(reminder)
 
     suspend fun deleteReminder(id: Long) {
         dao.delete(id)

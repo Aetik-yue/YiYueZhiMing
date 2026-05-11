@@ -18,6 +18,10 @@ import androidx.navigation.compose.rememberNavController
 import com.example.yiyuezhiming.ui.components.KawaiiBottomBar
 import com.example.yiyuezhiming.ui.screens.addmemory.AddMemoryScreen
 import com.example.yiyuezhiming.ui.screens.album.AlbumScreen
+import com.example.yiyuezhiming.ui.screens.chat.AiChatScreen
+import com.example.yiyuezhiming.ui.screens.fortune.DailySignScreen
+import com.example.yiyuezhiming.ui.screens.fortune.FortuneHubScreen
+import com.example.yiyuezhiming.ui.screens.fortune.TarotScreen
 import com.example.yiyuezhiming.ui.screens.home.HomeScreen
 import com.example.yiyuezhiming.ui.screens.memo.MemoScreen
 import com.example.yiyuezhiming.ui.screens.music.MusicPlayerScreen
@@ -38,7 +42,12 @@ fun AppNavGraph(
         Route.Home.path,
         Route.Album.path,
         Route.Reminders.path,
+        Route.Memo.path,
+        Route.FortuneHub.path,
+        Route.DailySign.path,
+        Route.Tarot.path,
         Route.Toolbox.path,
+        Route.AiChat.path,
         Route.Music.path,
         Route.Settings.path
     )
@@ -80,11 +89,28 @@ fun AppNavGraph(
                 ToolboxScreen(
                     onOpenMemories = { navController.navigate(Route.Home.path) },
                     onOpenReminders = { navController.navigate(Route.Reminders.path) },
-                    onOpenMemo = { navController.navigate(Route.Memo.path) }
+                    onOpenMemo = { navController.navigate(Route.Memo.path) },
+                    onOpenAlbum = { navController.navigate(Route.Album.path) },
+                    onOpenFortune = { navController.navigate(Route.FortuneHub.path) }
                 )
+            }
+            composable(Route.FortuneHub.path) {
+                FortuneHubScreen(
+                    onOpenSign = { navController.navigate(Route.DailySign.path) },
+                    onOpenTarot = { navController.navigate(Route.Tarot.path) }
+                )
+            }
+            composable(Route.DailySign.path) {
+                DailySignScreen()
+            }
+            composable(Route.Tarot.path) {
+                TarotScreen()
             }
             composable(Route.Memo.path) {
                 MemoScreen()
+            }
+            composable(Route.AiChat.path) {
+                AiChatScreen()
             }
             composable(Route.Home.path) {
                 HomeScreen(onAddMemory = { navController.navigate(Route.AddMemory.path) })

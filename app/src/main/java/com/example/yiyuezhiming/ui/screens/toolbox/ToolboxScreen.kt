@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -35,6 +34,7 @@ import com.example.yiyuezhiming.ui.animation.drawHeart
 import com.example.yiyuezhiming.ui.animation.kawaiiClickable
 import com.example.yiyuezhiming.ui.components.KawaiiCalendarIcon
 import com.example.yiyuezhiming.ui.components.KawaiiTopBar
+import com.example.yiyuezhiming.ui.components.PixelSamoyedIcon
 import com.example.yiyuezhiming.ui.components.RabbitLogo
 import com.example.yiyuezhiming.ui.theme.AccentHotPink
 import com.example.yiyuezhiming.ui.theme.CloudWhite
@@ -53,7 +53,9 @@ private data class ToolboxItem(
 fun ToolboxScreen(
     onOpenMemories: () -> Unit,
     onOpenReminders: () -> Unit,
-    onOpenMemo: () -> Unit
+    onOpenMemo: () -> Unit,
+    onOpenAlbum: () -> Unit,
+    onOpenFortune: () -> Unit
 ) {
     val items = listOf(
         ToolboxItem(
@@ -76,6 +78,20 @@ fun ToolboxScreen(
             colors = listOf(Color.White, CloudWhite, Color(0xFFFFE4F0)),
             icon = { MemoIcon(Modifier.fillMaxSize().padding(24.dp)) },
             onClick = onOpenMemo
+        ),
+        ToolboxItem(
+            title = "相册",
+            subtitle = "收藏我们的照片",
+            colors = listOf(Color.White, CloudWhite, Color(0xFFFFD6E8)),
+            icon = { PixelSamoyedIcon(Modifier.fillMaxSize().padding(24.dp)) },
+            onClick = onOpenAlbum
+        ),
+        ToolboxItem(
+            title = "运势",
+            subtitle = "签运和塔罗指引",
+            colors = listOf(Color.White, LavenderMist.copy(alpha = 0.82f), PrimaryPink.copy(alpha = 0.32f)),
+            icon = { FortuneIcon(Modifier.fillMaxSize().padding(24.dp)) },
+            onClick = onOpenFortune
         )
     )
 
@@ -101,18 +117,10 @@ fun ToolboxScreen(
 @Composable
 private fun MemoIcon(modifier: Modifier = Modifier) {
     Canvas(modifier) {
-        val paper = androidx.compose.ui.geometry.RoundRect(
-            left = size.width * 0.18f,
-            top = size.height * 0.1f,
-            right = size.width * 0.82f,
-            bottom = size.height * 0.88f,
-            radiusX = 24f,
-            radiusY = 24f
-        )
         drawRoundRect(
             color = CloudWhite,
-            topLeft = Offset(paper.left, paper.top),
-            size = androidx.compose.ui.geometry.Size(paper.width, paper.height),
+            topLeft = Offset(size.width * 0.18f, size.height * 0.1f),
+            size = androidx.compose.ui.geometry.Size(size.width * 0.64f, size.height * 0.78f),
             cornerRadius = androidx.compose.ui.geometry.CornerRadius(24f, 24f)
         )
         repeat(4) { index ->
@@ -125,6 +133,22 @@ private fun MemoIcon(modifier: Modifier = Modifier) {
             )
         }
         drawCircle(PrimaryPink, radius = size.minDimension * 0.08f, center = Offset(size.width * 0.72f, size.height * 0.18f))
+    }
+}
+
+@Composable
+private fun FortuneIcon(modifier: Modifier = Modifier) {
+    Canvas(modifier) {
+        drawCircle(CloudWhite, radius = size.minDimension * 0.34f, center = Offset(size.width * 0.5f, size.height * 0.5f))
+        drawCircle(
+            AccentHotPink.copy(alpha = 0.28f),
+            radius = size.minDimension * 0.22f,
+            center = Offset(size.width * 0.5f, size.height * 0.5f),
+            style = Stroke(width = 8f)
+        )
+        drawLine(AccentHotPink, Offset(size.width * 0.5f, size.height * 0.26f), Offset(size.width * 0.5f, size.height * 0.74f), 6f)
+        drawLine(AccentHotPink, Offset(size.width * 0.26f, size.height * 0.5f), Offset(size.width * 0.74f, size.height * 0.5f), 6f)
+        drawHeart(Offset(size.width * 0.72f, size.height * 0.28f), 10f, PrimaryPink)
     }
 }
 
@@ -186,3 +210,4 @@ private fun ToolboxCard(item: ToolboxItem) {
         }
     }
 }
+
