@@ -1,7 +1,5 @@
 package com.example.yiyuezhiming.ui.screens.music
 
-import android.Manifest
-import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
@@ -23,6 +21,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -30,20 +29,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -52,10 +50,13 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
@@ -66,28 +67,23 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.yiyuezhiming.model.Song
 import com.example.yiyuezhiming.ui.animation.drawHeart
 import com.example.yiyuezhiming.ui.animation.kawaiiClickable
-import com.example.yiyuezhiming.ui.components.KawaiiTopBar
 import com.example.yiyuezhiming.ui.theme.AccentHotPink
-import kotlin.math.roundToInt
-
-// Gradient presets for the dark immersive background
-private val gradientPresets = listOf(
-    listOf(AccentHotPink, Color(0xFF7C3AED), Color(0xFF1E1B4B)),
-    listOf(Color(0xFF67E8F9), Color(0xFF3B82F6), Color(0xFF0F172A)),
-    listOf(Color(0xFFF472B6), Color(0xFFDB2777), Color(0xFF1C1917)),
-    listOf(Color(0xFFA78BFA), Color(0xFF6366F1), Color(0xFF0C0A09))
-)
+import com.example.yiyuezhiming.ui.theme.DeepRose
+import com.example.yiyuezhiming.ui.theme.PrimaryPink
+import kotlinx.coroutines.isActive
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -96,494 +92,377 @@ fun MusicPlayerScreen(
 ) {
     val state by viewModel.state.collectAsState()
     var showPlaylist by remember { mutableStateOf(false) }
+    val song = state.currentSong
 
-    // Permission launcher
+    LaunchedEffect(Unit) { viewModel.connectToService() }
+
     val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        viewModel.onPermissionResult(granted)
-    }
+        ActivityResultContracts.RequestPermission()
+    ) { granted -> viewModel.onPermissionResult(granted) }
 
-    // Request permission on first launch if not yet granted
-    LaunchedEffect(Unit) {
-        if (!state.hasPermission && !state.isLoading) {
-            val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                Manifest.permission.READ_MEDIA_AUDIO
-            } else {
-                Manifest.permission.READ_EXTERNAL_STORAGE
-            }
-            permissionLauncher.launch(permission)
-        }
-    }
-
-    // Auto-show playlist when songs loaded but nothing playing
-    LaunchedEffect(state.isLoading, state.currentIndex, state.songs.size) {
-        if (!state.isLoading && state.songs.isNotEmpty() && state.currentIndex == -1) {
-            showPlaylist = true
-        }
-    }
-
-    when {
-        // Permission not granted
-        !state.hasPermission && !state.isLoading -> {
-            PermissionRequestUI(onRequestPermission = {
-                val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    Manifest.permission.READ_MEDIA_AUDIO
-                } else {
-                    Manifest.permission.READ_EXTERNAL_STORAGE
-                }
-                permissionLauncher.launch(permission)
-            })
-        }
-
-        // Loading
-        state.isLoading -> {
-            LoadingUI()
-        }
-
-        // Empty state
-        state.songs.isEmpty() -> {
-            EmptyMusicUI()
-        }
-
-        // Main player
-        else -> {
-            val currentSong = state.currentSong
-            if (currentSong != null && state.currentIndex >= 0) {
-                MainPlayerView(
-                    state = state,
-                    song = currentSong,
-                    onTogglePlayPause = { viewModel.togglePlayPause() },
-                    onNext = { viewModel.next() },
-                    onPrevious = { viewModel.previous() },
-                    onSeekTo = { viewModel.seekTo(it) },
-                    onToggleShuffle = { viewModel.toggleShuffle() },
-                    onCycleRepeat = { viewModel.cycleRepeatMode() },
-                    onShowPlaylist = { showPlaylist = true }
-                )
-            } else {
-                // Songs loaded but none selected - show prompt + playlist
-                SelectSongPromptUI(onShowPlaylist = { showPlaylist = true })
-            }
-
-            // Playlist bottom sheet
-            if (showPlaylist) {
-                PlaylistSheet(
-                    songs = state.songs,
-                    currentIndex = state.currentIndex,
-                    onSongClick = { index ->
-                        viewModel.playSong(index)
-                        showPlaylist = false
-                    },
-                    onDismiss = { showPlaylist = false }
-                )
-            }
-        }
-    }
-}
-
-// region Permission / Loading / Empty states
-
-@Composable
-private fun PermissionRequestUI(onRequestPermission: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(Color(0xFF2A1627), Color(0xFF050507))
-                )
-            ),
-        contentAlignment = Alignment.Center
+            .background(Brush.verticalGradient(listOf(Color(0xFF3A1F2B), Color(0xFF1A0F16), Color(0xFF0A060A))))
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(32.dp)
-        ) {
-            Text(
-                text = "🎵",
-                style = MaterialTheme.typography.displayLarge
-            )
-            Spacer(Modifier.height(16.dp))
-            Text(
-                text = "需要访问你的音乐",
-                color = Color.White,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = "授权后即可播放本地音乐哦~",
-                color = Color.White.copy(alpha = 0.6f),
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Spacer(Modifier.height(24.dp))
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(
-                        Brush.linearGradient(listOf(AccentHotPink, Color(0xFFA78BFA)))
+        PlayerBackground(song)
+
+        when {
+            !state.hasPermission -> PermissionView(
+                onRequest = {
+                    permissionLauncher.launch(
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                            android.Manifest.permission.READ_MEDIA_AUDIO
+                        } else {
+                            android.Manifest.permission.READ_EXTERNAL_STORAGE
+                        }
                     )
-                    .kawaiiClickable(pressedScale = 0.94f, onClick = onRequestPermission)
-                    .padding(horizontal = 32.dp, vertical = 14.dp)
-            ) {
-                Text(
-                    text = "授权访问",
-                    color = Color.White,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
+                },
+                modifier = Modifier.align(Alignment.Center)
+            )
+
+            state.isLoading -> LoadingView(Modifier.align(Alignment.Center))
+
+            state.queue.isEmpty() -> EmptyView(Modifier.align(Alignment.Center))
+
+            else -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .navigationBarsPadding()
+                ) {
+                    PlayerTopBar(
+                        onBack = { },
+                        onMore = { showPlaylist = true }
+                    )
+
+                    VinylDisc(
+                        song = song,
+                        isPlaying = state.isPlaying,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .padding(horizontal = 48.dp)
+                    )
+
+                    SongInfo(song)
+
+                    Spacer(Modifier.height(20.dp))
+
+                    QuickActions(onPlaylist = { showPlaylist = true })
+
+                    Spacer(Modifier.height(24.dp))
+
+                    SeekBar(
+                        position = state.position,
+                        duration = state.duration,
+                        onSeek = viewModel::seekTo
+                    )
+
+                    Spacer(Modifier.height(20.dp))
+
+                    PlaybackControls(
+                        isPlaying = state.isPlaying,
+                        isShuffleOn = state.isShuffleOn,
+                        repeatMode = state.repeatMode,
+                        onShuffle = viewModel::toggleShuffle,
+                        onPrevious = viewModel::previous,
+                        onPlayPause = viewModel::togglePlayPause,
+                        onNext = viewModel::next,
+                        onRepeat = viewModel::cycleRepeatMode
+                    )
+
+                    Spacer(Modifier.height(28.dp))
+                }
             }
+        }
+    }
+
+    if (showPlaylist) {
+        ModalBottomSheet(onDismissRequest = { showPlaylist = false }) {
+            PlaylistSheet(
+                queue = state.queue,
+                currentIndex = state.currentIndex,
+                onSelect = { index ->
+                    viewModel.playSong(index)
+                    showPlaylist = false
+                }
+            )
         }
     }
 }
 
 @Composable
-private fun LoadingUI() {
-    val infiniteTransition = rememberInfiniteTransition(label = "loading-pulse")
-    val pulseAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.4f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(1200), RepeatMode.Reverse),
-        label = "loading-alpha"
-    )
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(Color(0xFF2A1627), Color(0xFF050507))
+private fun PlayerBackground(song: Song?) {
+    Box(Modifier.fillMaxSize()) {
+        song?.albumArtUri?.let { uri ->
+            AsyncImage(
+                model = uri,
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .blur(90.dp)
+                    .alpha(0.5f),
+                contentScale = ContentScale.Crop
+            )
+        }
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            Color(0xFF2A1620).copy(alpha = 0.55f),
+                            Color(0xFF120A10).copy(alpha = 0.75f),
+                            Color(0xFF0A060A).copy(alpha = 0.9f)
+                        )
+                    )
                 )
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = "正在扫描音乐...",
-            color = Color.White.copy(alpha = pulseAlpha),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Medium
         )
     }
 }
 
 @Composable
-private fun EmptyMusicUI() {
-    Box(
+private fun PlayerTopBar(onBack: () -> Unit, onMore: () -> Unit) {
+    Row(
         modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(Color(0xFF2A1627), Color(0xFF050507))
-                )
-            ),
-        contentAlignment = Alignment.Center
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = "🎶",
-                style = MaterialTheme.typography.displayLarge
-            )
-            Spacer(Modifier.height(12.dp))
-            Text(
-                text = "没有找到本地音乐",
-                color = Color.White.copy(alpha = 0.7f),
-                style = MaterialTheme.typography.titleMedium
-            )
-        }
-    }
-}
-
-@Composable
-private fun SelectSongPromptUI(onShowPlaylist: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(Color(0xFF2A1627), Color(0xFF050507))
-                )
-            )
-    ) {
-        Column(
+        Box(
             modifier = Modifier
-                .fillMaxSize()
-                .navigationBarsPadding()
+                .size(44.dp)
+                .kawaiiClickable(pressedScale = 0.9f, onClick = onBack),
+            contentAlignment = Alignment.Center
         ) {
-            KawaiiTopBar(
-                title = "音乐",
-                showLogo = false,
-                modifier = Modifier.background(Color.Transparent)
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .weight(1f),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = "🎧",
-                        style = MaterialTheme.typography.displayLarge
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    Text(
-                        text = "选择一首歌开始播放吧",
-                        color = Color.White.copy(alpha = 0.7f),
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Spacer(Modifier.height(20.dp))
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(Color.White.copy(alpha = 0.12f))
-                            .kawaiiClickable(pressedScale = 0.94f, onClick = onShowPlaylist)
-                            .padding(horizontal = 24.dp, vertical = 12.dp)
-                    ) {
-                        Text(
-                            text = "打开播放列表",
-                            color = Color.White,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
+            Canvas(Modifier.size(22.dp)) {
+                drawLine(Color.White.copy(alpha = 0.85f), Offset(size.width * 0.7f, size.height * 0.15f), Offset(size.width * 0.25f, size.height * 0.5f), 4f, StrokeCap.Round)
+                drawLine(Color.White.copy(alpha = 0.85f), Offset(size.width * 0.25f, size.height * 0.5f), Offset(size.width * 0.7f, size.height * 0.85f), 4f, StrokeCap.Round)
+            }
+        }
+        Column(
+            modifier = Modifier.weight(1f),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text("正在播放", color = Color.White.copy(alpha = 0.9f), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+        }
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .kawaiiClickable(pressedScale = 0.9f, onClick = onMore),
+            contentAlignment = Alignment.Center
+        ) {
+            Canvas(Modifier.size(20.dp)) {
+                val cy = size.height / 2f
+                drawCircle(Color.White.copy(alpha = 0.85f), 3f, Offset(size.width * 0.2f, cy))
+                drawCircle(Color.White.copy(alpha = 0.85f), 3f, Offset(size.width * 0.5f, cy))
+                drawCircle(Color.White.copy(alpha = 0.85f), 3f, Offset(size.width * 0.8f, cy))
             }
         }
     }
 }
 
-// endregion
-
-// region Main Player
-
 @Composable
-private fun MainPlayerView(
-    state: MusicPlayerState,
-    song: Song,
-    onTogglePlayPause: () -> Unit,
-    onNext: () -> Unit,
-    onPrevious: () -> Unit,
-    onSeekTo: (Long) -> Unit,
-    onToggleShuffle: () -> Unit,
-    onCycleRepeat: () -> Unit,
-    onShowPlaylist: () -> Unit
-) {
-    val gradientIndex = state.currentIndex.coerceAtLeast(0) % gradientPresets.size
-    val gradientColors = gradientPresets[gradientIndex]
-    val backgroundColor by animateColorAsState(
-        gradientColors.first().copy(alpha = 0.92f),
-        label = "music-bg"
+private fun VinylDisc(song: Song?, isPlaying: Boolean, modifier: Modifier = Modifier) {
+    val rotation = remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(isPlaying) {
+        if (isPlaying) {
+            var lastTime = -1L
+            while (isActive) {
+                withFrameMillis { now ->
+                    if (lastTime >= 0) {
+                        rotation.floatValue = (rotation.floatValue + (now - lastTime) * 0.018f) % 360f
+                    }
+                    lastTime = now
+                }
+            }
+        }
+    }
+
+    val scale by animateFloatAsState(
+        targetValue = if (isPlaying) 1f else 0.94f,
+        animationSpec = tween(400),
+        label = "disc-scale"
     )
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(
-                        backgroundColor,
-                        Color(0xFF2A1627),
-                        Color(0xFF050507)
-                    )
-                )
-            )
+        modifier = modifier,
+        contentAlignment = Alignment.Center
     ) {
-        // Ambient circles
-        Canvas(Modifier.matchParentSize()) {
-            drawCircle(
-                color = gradientColors.getOrElse(1) { AccentHotPink }.copy(alpha = 0.2f),
-                radius = size.width * 0.56f,
-                center = Offset(size.width * 0.12f, size.height * 0.18f)
-            )
-            drawCircle(
-                color = gradientColors.last().copy(alpha = 0.16f),
-                radius = size.width * 0.45f,
-                center = Offset(size.width * 0.86f, size.height * 0.62f)
-            )
-        }
-
-        Column(
+        Box(
             modifier = Modifier
-                .fillMaxSize()
-                .navigationBarsPadding()
+                .fillMaxWidth(0.82f)
+                .aspectRatio(1f)
+                .scale(scale)
+                .rotate(rotation.floatValue)
+                .shadow(
+                    elevation = 36.dp,
+                    shape = CircleShape,
+                    ambientColor = Color.Black.copy(alpha = 0.5f),
+                    spotColor = AccentHotPink.copy(alpha = 0.2f)
+                )
         ) {
-            KawaiiTopBar(
-                title = "音乐",
-                showLogo = false,
-                modifier = Modifier.background(Color.Transparent)
-            )
-            Spacer(Modifier.height(22.dp))
-            AlbumArt(
-                song = song,
-                gradientColors = gradientColors,
-                isPlaying = state.isPlaying,
+            Canvas(Modifier.fillMaxSize()) {
+                drawCircle(Color(0xFF181418))
+                for (i in 1..7) {
+                    drawCircle(
+                        color = Color.White.copy(alpha = 0.05f),
+                        radius = size.minDimension * (0.5f - i * 0.045f),
+                        style = Stroke(width = 1.5f)
+                    )
+                }
+                drawCircle(Color(0xFF2A2228), size.minDimension * 0.30f)
+            }
+
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 38.dp)
-            )
-            Spacer(Modifier.height(28.dp))
-            Column(Modifier.padding(horizontal = 28.dp)) {
-                Text(
-                    text = song.title,
-                    color = Color.White,
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.ExtraBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = song.artist,
-                    color = Color.White.copy(alpha = 0.62f),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(Modifier.height(28.dp))
-                MusicProgress(
-                    positionMs = state.position,
-                    durationMs = state.duration,
-                    onSeekTo = onSeekTo
-                )
-                Spacer(Modifier.height(26.dp))
-                PlaybackControls(
-                    isPlaying = state.isPlaying,
-                    isShuffleOn = state.isShuffleOn,
-                    repeatMode = state.repeatMode,
-                    onShuffle = onToggleShuffle,
-                    onPrevious = onPrevious,
-                    onPlayPause = onTogglePlayPause,
-                    onNext = onNext,
-                    onRepeat = onCycleRepeat
-                )
-                Spacer(Modifier.height(16.dp))
-                // Playlist button
+                    .fillMaxSize()
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
                 Box(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentAlignment = Alignment.Center
+                    modifier = Modifier
+                        .fillMaxWidth(0.62f)
+                        .aspectRatio(1f)
+                        .clip(CircleShape)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(18.dp))
-                            .background(Color.White.copy(alpha = 0.1f))
-                            .kawaiiClickable(pressedScale = 0.94f, onClick = onShowPlaylist)
-                            .padding(horizontal = 20.dp, vertical = 10.dp)
-                    ) {
-                        Text(
-                            text = "播放列表",
-                            color = Color.White.copy(alpha = 0.8f),
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Medium
+                    if (song?.albumArtUri != null) {
+                        AsyncImage(
+                            model = song.albumArtUri,
+                            contentDescription = song.title,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
                         )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Brush.linearGradient(listOf(PrimaryPink, DeepRose))),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = song?.title?.take(1) ?: "♪",
+                                color = Color.White,
+                                fontSize = 44.sp,
+                                fontWeight = FontWeight.Black
+                            )
+                        }
                     }
                 }
             }
-        }
-    }
-}
 
-// endregion
-
-// region Album Art
-
-@Composable
-private fun AlbumArt(
-    song: Song,
-    gradientColors: List<Color>,
-    isPlaying: Boolean,
-    modifier: Modifier = Modifier
-) {
-    val infiniteTransition = rememberInfiniteTransition(label = "cover-breathe")
-    val breathing by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.035f,
-        animationSpec = infiniteRepeatable(tween(1800), RepeatMode.Reverse),
-        label = "cover-scale"
-    )
-    val coverScale by animateFloatAsState(
-        targetValue = if (isPlaying) breathing else 1f,
-        animationSpec = tween(450),
-        label = "cover-state-scale"
-    )
-    Box(
-        modifier = modifier
-            .aspectRatio(1f)
-            .scale(coverScale)
-            .shadow(
-                elevation = 30.dp,
-                shape = RoundedCornerShape(36.dp),
-                ambientColor = gradientColors.first().copy(alpha = 0.32f),
-                spotColor = Color.Black.copy(alpha = 0.32f)
-            )
-            .clip(RoundedCornerShape(36.dp)),
-        contentAlignment = Alignment.Center
-    ) {
-        if (song.albumArtUri != null) {
-            AsyncImage(
-                model = song.albumArtUri,
-                contentDescription = song.title,
-                modifier = Modifier.fillMaxSize()
-            )
-        } else {
-            // Gradient placeholder with first character
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .background(Brush.linearGradient(gradientColors)),
-                contentAlignment = Alignment.Center
-            ) {
-                Canvas(Modifier.matchParentSize().padding(28.dp)) {
-                    drawCircle(Color.White.copy(alpha = 0.16f), size.minDimension * 0.36f, center)
-                    drawCircle(Color.White.copy(alpha = 0.22f), size.minDimension * 0.2f, center)
-                    drawCircle(Color(0xFF050507).copy(alpha = 0.36f), size.minDimension * 0.08f, center)
-                    drawHeart(Offset(size.width * 0.28f, size.height * 0.3f), 18f, Color.White.copy(alpha = 0.84f))
-                    drawHeart(Offset(size.width * 0.7f, size.height * 0.68f), 12f, Color.White.copy(alpha = 0.56f))
-                }
-                Text(
-                    text = song.title.take(1),
-                    color = Color.White,
-                    style = MaterialTheme.typography.displayLarge,
-                    fontWeight = FontWeight.Black,
-                    textAlign = TextAlign.Center
-                )
-            }
+                    .size(14.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF0A060A))
+                    .align(Alignment.Center)
+            )
         }
     }
 }
 
-// endregion
-
-// region Progress Bar
+@Composable
+private fun SongInfo(song: Song?) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = song?.title ?: "未选择歌曲",
+            color = Color.White,
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.ExtraBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = listOfNotNull(song?.artist, song?.album)
+                .filter { it.isNotBlank() }
+                .joinToString(" · ")
+                .ifBlank { "未知歌手" },
+            color = Color.White.copy(alpha = 0.55f),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center
+        )
+    }
+}
 
 @Composable
-private fun MusicProgress(
-    positionMs: Long,
-    durationMs: Long,
-    onSeekTo: (Long) -> Unit
+private fun QuickActions(onPlaylist: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 48.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        QuickActionButton { canvasSize ->
+            drawHeart(Offset(canvasSize.width / 2f, canvasSize.height / 2f), canvasSize.width * 0.32f, Color.White.copy(alpha = 0.8f))
+        }
+        QuickActionButton(onClick = onPlaylist) { canvasSize ->
+            val w = canvasSize.width
+            val h = canvasSize.height
+            val c = Color.White.copy(alpha = 0.8f)
+            drawLine(c, Offset(w * 0.35f, h * 0.28f), Offset(w * 0.8f, h * 0.28f), 3.5f, StrokeCap.Round)
+            drawLine(c, Offset(w * 0.35f, h * 0.5f), Offset(w * 0.8f, h * 0.5f), 3.5f, StrokeCap.Round)
+            drawLine(c, Offset(w * 0.35f, h * 0.72f), Offset(w * 0.8f, h * 0.72f), 3.5f, StrokeCap.Round)
+            drawCircle(c, 4f, Offset(w * 0.22f, h * 0.28f))
+            drawCircle(c, 4f, Offset(w * 0.22f, h * 0.5f))
+            drawCircle(c, 4f, Offset(w * 0.22f, h * 0.72f))
+        }
+        QuickActionButton { canvasSize ->
+            val w = canvasSize.width
+            val h = canvasSize.height
+            val c = Color.White.copy(alpha = 0.8f)
+            drawCircle(c, 3f, Offset(w * 0.25f, h * 0.5f))
+            drawCircle(c, 3f, Offset(w * 0.5f, h * 0.5f))
+            drawCircle(c, 3f, Offset(w * 0.75f, h * 0.5f))
+        }
+    }
+}
+
+@Composable
+private fun QuickActionButton(
+    onClick: () -> Unit = { },
+    icon: androidx.compose.ui.graphics.drawscope.DrawScope.(Size) -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(46.dp)
+            .kawaiiClickable(pressedScale = 0.88f, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(Modifier.size(26.dp)) { icon(size) }
+    }
+}
+
+@Composable
+private fun SeekBar(
+    position: Long,
+    duration: Long,
+    onSeek: (Long) -> Unit
 ) {
     var isDragging by remember { mutableStateOf(false) }
     var dragProgress by remember { mutableFloatStateOf(0f) }
     val density = LocalDensity.current
-    val barHeight by animateDpAsState(if (isDragging) 6.dp else 4.dp, label = "progress-height")
-    val thumbSize by animateDpAsState(if (isDragging) 12.dp else 4.dp, label = "thumb-size")
-    val thumbAlpha by animateFloatAsState(if (isDragging) 1f else 0.28f, label = "thumb-alpha")
+    val progress = if (isDragging) dragProgress else (if (duration > 0) position.toFloat() / duration else 0f)
+    val barHeight by animateDpAsState(if (isDragging) 5.dp else 3.dp, label = "seek-height")
+    val thumbSize by animateDpAsState(if (isDragging) 16.dp else 12.dp, label = "seek-thumb")
 
-    val progress = if (isDragging) {
-        dragProgress
-    } else {
-        if (durationMs > 0) (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
-    }
-    val displayPositionMs = if (isDragging) {
-        (dragProgress * durationMs).toLong()
-    } else {
-        positionMs
-    }
-
-    Column {
+    Column(Modifier.padding(horizontal = 28.dp)) {
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(24.dp),
+                .height(28.dp),
             contentAlignment = Alignment.CenterStart
         ) {
             val sliderWidth = maxWidth
@@ -591,7 +470,7 @@ private fun MusicProgress(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(24.dp)
+                    .height(28.dp)
                     .pointerInput(widthPx) {
                         detectDragGestures(
                             onDragStart = { offset ->
@@ -600,7 +479,7 @@ private fun MusicProgress(
                             },
                             onDragEnd = {
                                 isDragging = false
-                                onSeekTo((dragProgress * durationMs).toLong())
+                                onSeek((dragProgress * duration).toLong())
                             },
                             onDragCancel = { isDragging = false },
                             onDrag = { change, _ ->
@@ -613,7 +492,7 @@ private fun MusicProgress(
             ) {
                 Canvas(Modifier.fillMaxWidth().height(barHeight)) {
                     drawRoundRect(
-                        color = Color.White.copy(alpha = 0.18f),
+                        color = Color.White.copy(alpha = 0.2f),
                         size = size,
                         cornerRadius = CornerRadius(999f, 999f)
                     )
@@ -627,16 +506,16 @@ private fun MusicProgress(
                     modifier = Modifier
                         .padding(start = ((sliderWidth - thumbSize) * progress.coerceIn(0f, 1f)))
                         .size(thumbSize)
-                        .alpha(thumbAlpha)
+                        .shadow(6.dp, CircleShape)
                         .clip(CircleShape)
                         .background(Color.White)
                 )
             }
         }
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(6.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            TimeText(formatMs(displayPositionMs))
-            TimeText(formatMs(durationMs))
+            TimeText(formatMs(if (isDragging) (dragProgress * duration).toLong() else position))
+            TimeText(formatMs(duration))
         }
     }
 }
@@ -652,10 +531,6 @@ private fun TimeText(text: String) {
     )
 }
 
-// endregion
-
-// region Playback Controls
-
 @Composable
 private fun PlaybackControls(
     isPlaying: Boolean,
@@ -667,93 +542,78 @@ private fun PlaybackControls(
     onNext: () -> Unit,
     onRepeat: () -> Unit
 ) {
-    BoxWithConstraints(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(96.dp)
-            .padding(horizontal = 12.dp),
-        contentAlignment = Alignment.Center
+            .padding(horizontal = 24.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        val railWidth = maxWidth.coerceAtMost(340.dp)
-        val nearOffset = railWidth * 0.23f
-        val farOffset = railWidth * 0.42f
-
-        Box(
-            modifier = Modifier
-                .width(railWidth)
-                .height(96.dp),
-            contentAlignment = Alignment.Center
-        ) {
+        ToggleControlButton(
+            icon = ControlIcon.Shuffle,
+            checked = isShuffleOn,
+            onClick = onShuffle,
+            modifier = Modifier.size(44.dp),
+            iconSize = 22.dp
+        )
+        TransportButton(
+            icon = ControlIcon.Previous,
+            onClick = onPrevious,
+            modifier = Modifier.size(52.dp),
+            iconSize = 32.dp
+        )
+        PlayPauseButton(isPlaying, onPlayPause)
+        TransportButton(
+            icon = ControlIcon.Next,
+            onClick = onNext,
+            modifier = Modifier.size(52.dp),
+            iconSize = 32.dp
+        )
+        Box {
             ToggleControlButton(
-                icon = ControlIcon.Shuffle,
-                checked = isShuffleOn,
-                onClick = onShuffle,
-                modifier = Modifier.offset(x = -farOffset).size(44.dp),
+                icon = ControlIcon.Repeat,
+                checked = repeatMode > 0,
+                onClick = onRepeat,
+                modifier = Modifier.size(44.dp),
                 iconSize = 22.dp
             )
-            TransportButton(
-                icon = ControlIcon.Previous,
-                onClick = onPrevious,
-                modifier = Modifier.offset(x = -nearOffset).size(52.dp),
-                iconSize = 34.dp
-            )
-            PlayPauseButton(isPlaying, onPlayPause)
-            TransportButton(
-                icon = ControlIcon.Next,
-                onClick = onNext,
-                modifier = Modifier.offset(x = nearOffset).size(52.dp),
-                iconSize = 34.dp
-            )
-            // Repeat with badge for repeat-one mode
-            Box(modifier = Modifier.offset(x = farOffset)) {
-                ToggleControlButton(
-                    icon = ControlIcon.Repeat,
-                    checked = repeatMode > 0,
-                    onClick = onRepeat,
-                    modifier = Modifier.size(44.dp),
-                    iconSize = 22.dp
+            if (repeatMode == 2) {
+                Text(
+                    "1",
+                    color = AccentHotPink,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Black,
+                    modifier = Modifier.align(Alignment.TopEnd).padding(top = 4.dp, end = 6.dp)
                 )
-                if (repeatMode == 2) {
-                    Text(
-                        text = "1",
-                        color = AccentHotPink,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.align(Alignment.TopEnd).offset(x = 4.dp, y = (-2).dp)
-                    )
-                }
             }
         }
     }
 }
 
 @Composable
-private fun PlayPauseButton(
-    isPlaying: Boolean,
-    onClick: () -> Unit
-) {
-    val glowAlpha by animateFloatAsState(if (isPlaying) 0.42f else 0.25f, label = "play-glow")
+private fun PlayPauseButton(isPlaying: Boolean, onClick: () -> Unit) {
+    val glowAlpha by animateFloatAsState(if (isPlaying) 0.4f else 0.22f, label = "play-glow")
     Box(
         modifier = Modifier.size(88.dp),
         contentAlignment = Alignment.Center
     ) {
         Box(
             modifier = Modifier
-                .size(86.dp)
+                .size(88.dp)
                 .clip(CircleShape)
                 .background(Brush.radialGradient(listOf(AccentHotPink.copy(alpha = glowAlpha), Color.Transparent)))
         )
         Box(
             modifier = Modifier
-                .size(72.dp)
+                .size(76.dp)
                 .shadow(
-                    elevation = 30.dp,
+                    elevation = 28.dp,
                     shape = CircleShape,
-                    ambientColor = Color.Black.copy(alpha = 0.3f),
-                    spotColor = AccentHotPink.copy(alpha = 0.25f)
+                    ambientColor = Color.Black.copy(alpha = 0.4f),
+                    spotColor = AccentHotPink.copy(alpha = 0.3f)
                 )
                 .clip(CircleShape)
-                .background(Brush.linearGradient(listOf(Color(0xFFA78BFA), Color(0xFF67E8F9))))
+                .background(Brush.linearGradient(listOf(PrimaryPink, DeepRose)))
                 .kawaiiClickable(pressedScale = 0.92f, onClick = onClick),
             contentAlignment = Alignment.Center
         ) {
@@ -764,8 +624,8 @@ private fun PlayPauseButton(
             ) { playing ->
                 ControlIconCanvas(
                     icon = if (playing) ControlIcon.Pause else ControlIcon.Play,
-                    color = Color(0xFF050507),
-                    modifier = Modifier.size(36.dp)
+                    color = Color.White,
+                    modifier = Modifier.size(34.dp)
                 )
             }
         }
@@ -796,114 +656,128 @@ private fun ToggleControlButton(
     iconSize: androidx.compose.ui.unit.Dp
 ) {
     val color by animateColorAsState(
-        if (checked) AccentHotPink else Color.White.copy(alpha = 0.55f),
+        if (checked) AccentHotPink else Color.White.copy(alpha = 0.5f),
         label = "toggle-color"
     )
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(
-            modifier = modifier.kawaiiClickable(pressedScale = 0.9f, onClick = onClick),
-            contentAlignment = Alignment.Center
-        ) {
-            ControlIconCanvas(icon, color, Modifier.size(iconSize))
-        }
-        Box(
-            modifier = Modifier
-                .size(4.dp)
-                .clip(CircleShape)
-                .background(color)
-                .alpha(if (checked) 1f else 0f)
-        )
+    Box(
+        modifier = modifier.kawaiiClickable(pressedScale = 0.9f, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        ControlIconCanvas(icon, color, Modifier.size(iconSize))
     }
 }
-
-// endregion
-
-// region Playlist Sheet
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PlaylistSheet(
-    songs: List<Song>,
+    queue: List<Song>,
     currentIndex: Int,
-    onSongClick: (Int) -> Unit,
-    onDismiss: () -> Unit
+    onSelect: (Int) -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val listState = rememberLazyListState()
-
-    // Auto-scroll to current song
     LaunchedEffect(currentIndex) {
-        if (currentIndex >= 0) {
-            listState.animateScrollToItem(currentIndex)
-        }
+        if (currentIndex >= 0) listState.animateScrollToItem(currentIndex)
     }
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = Color(0xFF1A1A2E),
-        contentColor = Color.White
+    Text(
+        "播放列表 · ${queue.size}首",
+        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+        color = AccentHotPink,
+        fontWeight = FontWeight.ExtraBold
+    )
+    LazyColumn(
+        state = listState,
+        contentPadding = PaddingValues(bottom = 28.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-        ) {
-            Text(
-                text = "播放列表 · ${songs.size}首",
-                color = Color.White,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
-            )
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.fillMaxWidth()
+        itemsIndexed(queue) { index, item ->
+            val isCurrent = index == currentIndex
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .kawaiiClickable { onSelect(index) }
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                itemsIndexed(songs) { index, song ->
-                    val isCurrent = index == currentIndex
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .kawaiiClickable(pressedScale = 0.98f, onClick = { onSongClick(index) })
-                            .padding(horizontal = 20.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = song.title,
-                                color = if (isCurrent) AccentHotPink else Color.White,
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = song.artist,
-                                color = if (isCurrent) AccentHotPink.copy(alpha = 0.7f) else Color.White.copy(alpha = 0.5f),
-                                style = MaterialTheme.typography.bodySmall,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                        Spacer(Modifier.width(12.dp))
-                        Text(
-                            text = formatMs(song.duration),
-                            color = Color.White.copy(alpha = 0.4f),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        item.title,
+                        color = if (isCurrent) AccentHotPink else MaterialTheme.colorScheme.onSurface,
+                        fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        item.artist,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
+                Text(
+                    formatMs(item.duration),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = FontFamily.Monospace
+                )
             }
-            Spacer(Modifier.height(16.dp))
         }
     }
 }
 
-// endregion
+@Composable
+private fun PermissionView(onRequest: () -> Unit, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier.padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text("🎵", fontSize = 56.sp)
+        Spacer(Modifier.height(16.dp))
+        Text("需要访问你的音乐", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "授权后即可扫描并播放设备里的本地音乐",
+            color = Color.White.copy(alpha = 0.6f),
+            textAlign = TextAlign.Center
+        )
+        Spacer(Modifier.height(24.dp))
+        Button(
+            onClick = onRequest,
+            shape = RoundedCornerShape(999.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = AccentHotPink)
+        ) { Text("授权访问", color = Color.White) }
+    }
+}
 
-// region Canvas Icons
+@Composable
+private fun LoadingView(modifier: Modifier = Modifier) {
+    val transition = rememberInfiniteTransition(label = "loading")
+    val alpha by transition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(900), RepeatMode.Reverse),
+        label = "loading-alpha"
+    )
+    Text(
+        "正在扫描音乐...",
+        modifier = modifier,
+        color = Color.White.copy(alpha = alpha),
+        fontWeight = FontWeight.Medium
+    )
+}
+
+@Composable
+private fun EmptyView(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier.padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text("🎧", fontSize = 56.sp)
+        Spacer(Modifier.height(16.dp))
+        Text("没有找到本地音乐", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
+        Spacer(Modifier.height(8.dp))
+        Text("把喜欢的歌下载到手机里，就能在这里播放啦", color = Color.White.copy(alpha = 0.6f), textAlign = TextAlign.Center)
+    }
+}
 
 private enum class ControlIcon {
     Shuffle, Previous, Play, Pause, Next, Repeat
@@ -921,9 +795,9 @@ private fun ControlIconCanvas(
         when (icon) {
             ControlIcon.Play -> {
                 val path = androidx.compose.ui.graphics.Path().apply {
-                    moveTo(w * 0.34f, h * 0.22f)
-                    lineTo(w * 0.34f, h * 0.78f)
-                    lineTo(w * 0.78f, h * 0.5f)
+                    moveTo(w * 0.36f, h * 0.22f)
+                    lineTo(w * 0.36f, h * 0.78f)
+                    lineTo(w * 0.8f, h * 0.5f)
                     close()
                 }
                 drawPath(path, color)
@@ -934,11 +808,11 @@ private fun ControlIconCanvas(
             }
             ControlIcon.Previous -> {
                 drawLine(color, Offset(w * 0.2f, h * 0.24f), Offset(w * 0.2f, h * 0.76f), 4f, StrokeCap.Round)
-                drawTriangle(color, Offset(w * 0.75f, h * 0.2f), Offset(w * 0.32f, h * 0.5f), Offset(w * 0.75f, h * 0.8f))
+                drawTriangle(color, Offset(w * 0.78f, h * 0.2f), Offset(w * 0.34f, h * 0.5f), Offset(w * 0.78f, h * 0.8f))
             }
             ControlIcon.Next -> {
                 drawLine(color, Offset(w * 0.8f, h * 0.24f), Offset(w * 0.8f, h * 0.76f), 4f, StrokeCap.Round)
-                drawTriangle(color, Offset(w * 0.25f, h * 0.2f), Offset(w * 0.68f, h * 0.5f), Offset(w * 0.25f, h * 0.8f))
+                drawTriangle(color, Offset(w * 0.22f, h * 0.2f), Offset(w * 0.66f, h * 0.5f), Offset(w * 0.22f, h * 0.8f))
             }
             ControlIcon.Shuffle -> {
                 drawLine(color, Offset(w * 0.12f, h * 0.32f), Offset(w * 0.42f, h * 0.32f), 3.2f, StrokeCap.Round)
@@ -988,15 +862,9 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawArrowHead(
     drawPath(path, color)
 }
 
-// endregion
-
-// region Helpers
-
 private fun formatMs(ms: Long): String {
     val totalSeconds = (ms / 1000).toInt()
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
     return "$minutes:${seconds.toString().padStart(2, '0')}"
 }
-
-// endregion
