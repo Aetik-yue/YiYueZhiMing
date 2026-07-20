@@ -30,6 +30,12 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
+/** Result of enqueuing a local file import. Lets the UI know if the file could be staged. */
+sealed interface ImportEnqueueResult {
+    object Success : ImportEnqueueResult
+    data class Failure(val reason: String) : ImportEnqueueResult
+}
+
 @Singleton
 class BookRepository @Inject constructor(
     private val dao: BookDao,
@@ -77,35 +83,39 @@ class BookRepository @Inject constructor(
             .apply()
     }
 
-    fun enqueueImport(uri: Uri, displayName: String?, mimeType: String?) {
-        val name = displayName?.takeIf { it.isNotBlank() } ?: "import_${System.currentTimeMillis()}.txt"
-        val stagingDir = File(context.filesDir, "books/staging").apply { mkdirs() }
-        val stagingFile = File(stagingDir, "${System.currentTimeMillis()}_${safeName(name)}")
-        val copied = runCatching {
-            context.contentResolver.openInputStream(uri)?.use { input ->
-                stagingFile.outputStream().use { output -> input.copyTo(output) }
+    suspend fun enqueueImport(uri: Uri, displayName: String?, mimeType: String?): ImportEnqueueResult =
+        withContext(Dispatchers.IO) {
+            val name = displayName?.takeIf { it.isNotBlank() } ?: "import_${System.currentTimeMillis()}.txt"
+            val stagingDir = File(context.filesDir, "books/staging").apply { mkdirs() }
+            val stagingFile = File(stagingDir, "${System.currentTimeMillis()}_${safeName(name)}")
+            val copyResult = runCatching {
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    stagingFile.outputStream().use { output -> input.copyTo(output) }
+                }
+                stagingFile.exists() && stagingFile.length() > 0
             }
-            stagingFile.exists() && stagingFile.length() > 0
-        }.getOrDefault(false)
-        if (!copied) {
-            stagingFile.delete()
-            return
-        }
-        val request = OneTimeWorkRequestBuilder<BookImportWorker>()
-            .setInputData(
-                Data.Builder()
-                    .putString(BookImportWorker.KEY_LOCAL_PATH, stagingFile.absolutePath)
-                    .putString(BookImportWorker.KEY_NAME, name)
-                    .putString(BookImportWorker.KEY_MIME, mimeType.orEmpty())
-                    .build()
+            if (copyResult.getOrDefault(false).not()) {
+                stagingFile.delete()
+                val reason = copyResult.exceptionOrNull()?.message?.takeIf { it.isNotBlank() }
+                    ?: if (stagingFile.length() == 0L) "文件为空或无法读取" else "无法读取所选文件，请重试"
+                return@withContext ImportEnqueueResult.Failure(reason)
+            }
+            val request = OneTimeWorkRequestBuilder<BookImportWorker>()
+                .setInputData(
+                    Data.Builder()
+                        .putString(BookImportWorker.KEY_LOCAL_PATH, stagingFile.absolutePath)
+                        .putString(BookImportWorker.KEY_NAME, name)
+                        .putString(BookImportWorker.KEY_MIME, mimeType.orEmpty())
+                        .build()
+                )
+                .build()
+            WorkManager.getInstance(context).enqueueUniqueWork(
+                "import_book_${System.currentTimeMillis()}",
+                ExistingWorkPolicy.KEEP,
+                request
             )
-            .build()
-        WorkManager.getInstance(context).enqueueUniqueWork(
-            "import_book_${System.currentTimeMillis()}",
-            ExistingWorkPolicy.KEEP,
-            request
-        )
-    }
+            ImportEnqueueResult.Success
+        }
 
     fun enqueueRemoteImport(url: String, title: String?) {
         val request = OneTimeWorkRequestBuilder<BookImportWorker>()
@@ -207,8 +217,10 @@ class BookRepository @Inject constructor(
                 File(bookDir, "cover").also { it.writeBytes(bytes) }.absolutePath
             }
             val paginator = PaginationEngine()
+            val chapterPageCounts = mutableListOf<Int>()
             val chapters = metadata.chapters.mapIndexed { index, epubChapter ->
                 val pages = paginator.paginate(epubChapter.content, chapterIndex = index)
+                chapterPageCounts.add(pages.size)
                 ChapterEntity(
                     id = "$bookId-$index",
                     bookId = bookId,
@@ -218,6 +230,7 @@ class BookRepository @Inject constructor(
                     rawContent = epubChapter.content
                 )
             }
+            val totalPages = chapterPageCounts.sum()
             dao.upsertChapters(chapters)
             dao.upsertBook(
                 BookEntity(
@@ -229,6 +242,8 @@ class BookRepository @Inject constructor(
                     sourceType = "LOCAL_FILE",
                     sourceUrl = null,
                     totalChapters = chapters.size,
+                    totalPages = totalPages,
+                    currentPageInBook = 0,
                     fileSize = epubFile.length(),
                     status = "READY",
                     addedAt = now,
@@ -351,8 +366,10 @@ class BookRepository @Inject constructor(
         val normalized = normalizeTxt(text)
         if (normalized.isBlank()) error("TXT 文件没有可阅读内容")
         val paginator = PaginationEngine()
+        val chapterPageCounts = mutableListOf<Int>()
         val chapters = splitTxtChapters(normalized, title).mapIndexed { index, chapter ->
             val pages = paginator.paginate(chapter.content, chapterIndex = index)
+            chapterPageCounts.add(pages.size)
             ChapterEntity(
                 id = "$bookId-$index",
                 bookId = bookId,
@@ -362,6 +379,7 @@ class BookRepository @Inject constructor(
                 rawContent = chapter.content
             )
         }
+        val totalPages = chapterPageCounts.sum()
         dao.upsertChapters(chapters)
         dao.upsertBook(
             BookEntity(
@@ -373,6 +391,8 @@ class BookRepository @Inject constructor(
                 sourceType = sourceType,
                 sourceUrl = sourceUrl,
                 totalChapters = chapters.size,
+                totalPages = totalPages,
+                currentPageInBook = 0,
                 fileSize = fileSize,
                 status = "READY",
                 addedAt = addedAt,
@@ -381,8 +401,24 @@ class BookRepository @Inject constructor(
         )
     }
 
-    suspend fun updateProgress(bookId: String, chapterIndex: Int, pageIndex: Int) {
-        dao.updateProgress(bookId, chapterIndex, pageIndex, System.currentTimeMillis())
+    suspend fun updateProgress(bookId: String, chapterIndex: Int, pageIndex: Int, pagesInChapter: Int) {
+        val counts = ensureChapterPageCounts(bookId)
+        if (chapterIndex in counts.indices) counts[chapterIndex] = pagesInChapter
+        val currentPageInBook = counts.take(chapterIndex).sum() + pageIndex
+        val totalPages = counts.sum()
+        dao.updateProgress(bookId, chapterIndex, pageIndex, currentPageInBook, totalPages, System.currentTimeMillis())
+    }
+
+    private val chapterPageCountCache = mutableMapOf<String, IntArray>()
+
+    private suspend fun ensureChapterPageCounts(bookId: String): IntArray {
+        chapterPageCountCache[bookId]?.let { return it }
+        val chapters = dao.getChapters(bookId)
+        val counts = IntArray(chapters.size) { i ->
+            com.example.yiyuezhiming.data.reader.PageJsonCodec.decode(chapters[i].pagesJson).size
+        }
+        chapterPageCountCache[bookId] = counts
+        return counts
     }
 
     suspend fun renameBook(bookId: String, title: String) {
@@ -417,7 +453,12 @@ class BookRepository @Inject constructor(
             }.getOrNull()
             if (!decoded.isNullOrBlank()) return decoded
         }
-        return String(bytes, Charset.forName("GB18030"))
+        return Charset.forName("GB18030")
+            .newDecoder()
+            .onMalformedInput(CodingErrorAction.REPLACE)
+            .onUnmappableCharacter(CodingErrorAction.REPLACE)
+            .decode(ByteBuffer.wrap(bytes))
+            .toString()
     }
 
     private suspend fun createFailedBook(

@@ -14,10 +14,18 @@ data class Book(
     val status: String,
     val errorMessage: String?,
     val addedAt: Long,
-    val lastReadAt: Long?
+    val lastReadAt: Long?,
+    val totalPages: Int = 0,
+    val currentPageInBook: Int = 0
 ) {
     val progress: Float
-        get() = if (totalChapters <= 0) 0f else (currentChapterIndex + 1).coerceAtMost(totalChapters).toFloat() / totalChapters
+        get() = if (totalPages > 0) {
+            (currentPageInBook.coerceAtLeast(0)).toFloat() / totalPages
+        } else if (totalChapters <= 0) {
+            0f
+        } else {
+            (currentChapterIndex + 1).coerceAtMost(totalChapters).toFloat() / totalChapters
+        }.coerceIn(0f, 1f)
 }
 
 data class Chapter(

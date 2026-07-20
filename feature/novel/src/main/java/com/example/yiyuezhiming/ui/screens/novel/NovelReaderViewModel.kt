@@ -53,6 +53,7 @@ class NovelReaderViewModel @Inject constructor(
     private val _state = MutableStateFlow(NovelReaderState())
     val state: StateFlow<NovelReaderState> = _state.asStateFlow()
     private var paginateJob: Job? = null
+    private var progressRestored = false
 
     init {
         val savedSettings = repository.loadReaderSettings()
@@ -62,25 +63,30 @@ class NovelReaderViewModel @Inject constructor(
                 if (book == null) {
                     _state.update { it.copy(isLoading = false, error = "找不到这本书") }
                 } else {
-                    _state.update {
-                        it.copy(
-                            book = book,
-                            chapterIndex = if (it.chapterMetas.isEmpty()) book.currentChapterIndex else it.chapterIndex,
-                            isLoading = false
-                        )
-                    }
+                    _state.update { it.copy(book = book, isLoading = false) }
+                    maybeRestoreProgress(book)
                 }
             }
         }
         viewModelScope.launch {
             repository.observeChapterMetas(bookId).collect { metas ->
-                _state.update { prev ->
-                    val idx = prev.chapterIndex.coerceIn(0, (metas.size - 1).coerceAtLeast(0))
-                    prev.copy(chapterMetas = metas, chapterIndex = idx)
-                }
-                loadChapter(_state.value.chapterIndex, _state.value.pageIndex)
+                _state.update { it.copy(chapterMetas = metas) }
+                _state.value.book?.let { maybeRestoreProgress(it) }
             }
         }
+    }
+
+    // 等 book 与 chapterMetas 都到齐后，用持久化的章节/页内位置恢复一次；
+    // 之后任何 Flow 的后续发射都不再覆盖已恢复的位置。
+    private fun maybeRestoreProgress(book: Book) {
+        if (progressRestored) return
+        val metas = _state.value.chapterMetas
+        if (metas.isEmpty()) return
+        progressRestored = true
+        val chapterIndex = book.currentChapterIndex.coerceIn(0, (metas.size - 1).coerceAtLeast(0))
+        val pageIndex = book.currentPageInChapter.coerceAtLeast(0)
+        _state.update { it.copy(chapterIndex = chapterIndex) }
+        loadChapter(chapterIndex, pageIndex)
     }
 
     fun toggleMenu() = _state.update { it.copy(menuVisible = !it.menuVisible) }
@@ -161,6 +167,7 @@ class NovelReaderViewModel @Inject constructor(
             val pages = paginate(content, s.settings)
             val newPage = pages.indexOfLast { it.startOffset <= currentOffset }.coerceAtLeast(0)
             _state.update { it.copy(pages = pages, pageIndex = newPage) }
+            saveProgress(s.chapterIndex, newPage)
         }
     }
 
@@ -177,6 +184,7 @@ class NovelReaderViewModel @Inject constructor(
         }
 
     private fun saveProgress(chapterIndex: Int, pageIndex: Int) {
-        viewModelScope.launch { repository.updateProgress(bookId, chapterIndex, pageIndex) }
+        val pagesInChapter = _state.value.pages.size
+        viewModelScope.launch { repository.updateProgress(bookId, chapterIndex, pageIndex, pagesInChapter) }
     }
 }

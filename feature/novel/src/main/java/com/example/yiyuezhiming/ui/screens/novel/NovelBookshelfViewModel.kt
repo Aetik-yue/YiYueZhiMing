@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.yiyuezhiming.data.BookRepository
+import com.example.yiyuezhiming.data.ImportEnqueueResult
 import com.example.yiyuezhiming.model.Book
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -65,8 +66,14 @@ class NovelBookshelfViewModel @Inject constructor(
     }
 
     fun import(uri: Uri, name: String?, mimeType: String?) {
-        repository.enqueueImport(uri, name, mimeType)
-        _state.update { it.copy(message = "已开始导入，若格式不支持会在书架显示失败原因") }
+        viewModelScope.launch {
+            when (val result = repository.enqueueImport(uri, name, mimeType)) {
+                ImportEnqueueResult.Success ->
+                    _state.update { it.copy(message = "已开始导入，完成后会在书架显示结果") }
+                is ImportEnqueueResult.Failure ->
+                    _state.update { it.copy(message = "导入失败：${result.reason}") }
+            }
+        }
     }
 
     fun fetchOnline(url: String, title: String?) {

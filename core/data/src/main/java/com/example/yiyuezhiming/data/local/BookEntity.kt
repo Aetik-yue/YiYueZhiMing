@@ -15,6 +15,8 @@ data class BookEntity(
     val totalChapters: Int,
     val currentChapterIndex: Int = 0,
     val currentPageInChapter: Int = 0,
+    val totalPages: Int = 0,
+    val currentPageInBook: Int = 0,
     val fileSize: Long = 0,
     val status: String = "READY",
     val errorMessage: String? = null,

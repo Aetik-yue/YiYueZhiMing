@@ -147,7 +147,15 @@ fun NovelReaderScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .pointerInput(Unit) {
-                            detectTapGestures { viewModel.toggleMenu() }
+                            val width = size.width.toFloat()
+                            detectTapGestures { offset ->
+                                when {
+                                    width <= 0f -> viewModel.toggleMenu()
+                                    offset.x < width * 0.33f -> viewModel.previousPage()
+                                    offset.x > width * 0.66f -> viewModel.nextPage()
+                                    else -> viewModel.toggleMenu()
+                                }
+                            }
                         },
                     contentPadding = PaddingValues(horizontal = state.settings.pagePadding.dp)
                 ) { page ->

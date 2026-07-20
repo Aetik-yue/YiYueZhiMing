@@ -44,11 +44,20 @@ interface BookDao {
         UPDATE books
         SET currentChapterIndex = :chapterIndex,
             currentPageInChapter = :pageIndex,
+            currentPageInBook = :currentPageInBook,
+            totalPages = :totalPages,
             lastReadAt = :lastReadAt
         WHERE id = :bookId
         """
     )
-    suspend fun updateProgress(bookId: String, chapterIndex: Int, pageIndex: Int, lastReadAt: Long)
+    suspend fun updateProgress(
+        bookId: String,
+        chapterIndex: Int,
+        pageIndex: Int,
+        currentPageInBook: Int,
+        totalPages: Int,
+        lastReadAt: Long
+    )
 
     @Query("DELETE FROM chapters WHERE bookId = :bookId")
     suspend fun deleteChapters(bookId: String)

@@ -146,7 +146,9 @@ fun BookEntity.toModel(): Book = Book(
     status = status,
     errorMessage = errorMessage,
     addedAt = addedAt,
-    lastReadAt = lastReadAt
+    lastReadAt = lastReadAt,
+    totalPages = totalPages,
+    currentPageInBook = currentPageInBook
 )
 
 fun Book.toEntity(): BookEntity = BookEntity(
@@ -164,7 +166,9 @@ fun Book.toEntity(): BookEntity = BookEntity(
     status = status,
     errorMessage = errorMessage,
     addedAt = addedAt,
-    lastReadAt = lastReadAt
+    lastReadAt = lastReadAt,
+    totalPages = totalPages,
+    currentPageInBook = currentPageInBook
 )
 
 fun ChapterEntity.toModel(): Chapter = Chapter(
