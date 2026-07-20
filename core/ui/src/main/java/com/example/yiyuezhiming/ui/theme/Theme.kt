@@ -6,33 +6,48 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.Color
 
 private val LightScheme = lightColorScheme(
     primary = AccentHotPink,
-    secondary = PrimaryPink,
-    tertiary = LavenderMist,
-    background = BackgroundPink,
-    surface = SoftBlush,
-    surfaceVariant = CloudWhite,
-    onPrimary = androidx.compose.ui.graphics.Color.White,
+    onPrimary = Color.White,
+    primaryContainer = PrimaryPink,
+    onPrimaryContainer = DeepRose,
+    secondary = SecondaryPink,
     onSecondary = TextBrown,
+    secondaryContainer = CreamPink,
+    onSecondaryContainer = TextBrown,
+    tertiary = LavenderMist,
+    onTertiary = TextBrown,
+    background = BackgroundPink,
     onBackground = TextBrown,
+    surface = SoftBlush,
     onSurface = TextBrown,
-    onSurfaceVariant = TextBrown
+    surfaceVariant = CloudWhite,
+    onSurfaceVariant = TextSecondary,
+    outline = PaleRose,
+    outlineVariant = PaleRose.copy(alpha = 0.5f)
 )
 
 private val DarkScheme = darkColorScheme(
-    primary = PrimaryPink,
-    secondary = DarkAccent,
-    tertiary = DarkWine,
-    background = DarkBackground,
-    surface = DarkSurface,
-    surfaceVariant = DarkWine,
+    primary = DarkAccent,
     onPrimary = DarkBackground,
+    primaryContainer = DarkWine,
+    onPrimaryContainer = DarkText,
+    secondary = DarkAccent.copy(alpha = 0.7f),
     onSecondary = DarkText,
+    secondaryContainer = DarkSurfaceVariant,
+    onSecondaryContainer = DarkText,
+    tertiary = DarkWine,
+    onTertiary = DarkText,
+    background = DarkBackground,
     onBackground = DarkText,
+    surface = DarkSurface,
     onSurface = DarkText,
-    onSurfaceVariant = DarkText
+    surfaceVariant = DarkSurfaceVariant,
+    onSurfaceVariant = DarkTextSecondary,
+    outline = DarkWine,
+    outlineVariant = DarkWine.copy(alpha = 0.5f)
 )
 
 @Composable

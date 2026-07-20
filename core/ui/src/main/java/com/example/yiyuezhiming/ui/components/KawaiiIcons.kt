@@ -6,7 +6,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
@@ -19,7 +21,10 @@ import com.example.yiyuezhiming.ui.animation.drawHeart
 import com.example.yiyuezhiming.ui.theme.AccentHotPink
 import com.example.yiyuezhiming.ui.theme.CloudWhite
 import com.example.yiyuezhiming.ui.theme.PrimaryPink
+import com.example.yiyuezhiming.ui.theme.SecondaryPink
 import com.example.yiyuezhiming.ui.theme.TextBrown
+import kotlin.math.cos
+import kotlin.math.sin
 
 @Composable
 fun AppLogoIcon(modifier: Modifier = Modifier) {
@@ -54,22 +59,41 @@ fun PixelAlaskaIcon(modifier: Modifier = Modifier) {
 @Composable
 fun KawaiiCalendarIcon(modifier: Modifier = Modifier) {
     Canvas(modifier.size(32.dp).semantics { contentDescription = "日期" }) {
-        val c = Offset(size.width / 2f, size.height / 2f)
+        val w = size.width
+        val h = size.height
+        // Content area: 70% of canvas, 15% padding each side
+        val padX = w * 0.15f
+        val padY = h * 0.15f
+        val contentW = w * 0.70f
+        val contentH = h * 0.70f
+        val cornerR = minOf(contentW, contentH) * 0.25f
+
+        // Rounded rectangle body (CloudWhite fill)
         drawRoundRect(
             color = CloudWhite,
-            topLeft = Offset(4f, 6f),
-            size = androidx.compose.ui.geometry.Size(size.width - 8f, size.height - 8f),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(7f)
+            topLeft = Offset(padX, padY),
+            size = Size(contentW, contentH),
+            cornerRadius = CornerRadius(cornerR)
         )
+
+        // Top strip (PrimaryPink)
+        val stripH = contentH * 0.28f
         drawRoundRect(
-            color = AccentHotPink,
-            topLeft = Offset(4f, 6f),
-            size = androidx.compose.ui.geometry.Size(size.width - 8f, 8f),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(7f)
+            color = PrimaryPink,
+            topLeft = Offset(padX, padY),
+            size = Size(contentW, stripH),
+            cornerRadius = CornerRadius(cornerR, cornerR)
         )
-        drawCircle(PrimaryPink, 3f, Offset(11f, 8f))
-        drawCircle(PrimaryPink, 3f, Offset(size.width - 11f, 8f))
-        drawHeart(c + Offset(0f, 5f), 5f, AccentHotPink)
+
+        // Two small binding circles at top
+        val circleY = padY + stripH * 0.5f
+        val circleR = contentW * 0.06f
+        drawCircle(TextBrown, circleR, Offset(padX + contentW * 0.3f, circleY))
+        drawCircle(TextBrown, circleR, Offset(padX + contentW * 0.7f, circleY))
+
+        // Small heart in center of body
+        val heartCenter = Offset(padX + contentW * 0.5f, padY + contentH * 0.62f)
+        drawHeart(heartCenter, contentW * 0.14f, AccentHotPink)
     }
 }
 
@@ -77,22 +101,40 @@ fun KawaiiCalendarIcon(modifier: Modifier = Modifier) {
 fun CatGearIcon(modifier: Modifier = Modifier, contentDescription: String = "设置") {
     Canvas(modifier.size(44.dp).semantics { this.contentDescription = contentDescription }) {
         val c = Offset(size.width / 2f, size.height / 2f)
-        drawCircle(CloudWhite, 17f, c)
-        drawLine(PrimaryPink, Offset(c.x - 12f, c.y - 22f), Offset(c.x - 3f, c.y - 14f), 6f, StrokeCap.Round)
-        drawLine(PrimaryPink, Offset(c.x + 12f, c.y - 22f), Offset(c.x + 3f, c.y - 14f), 6f, StrokeCap.Round)
-        repeat(8) { i ->
-            val a = Math.toRadians((i * 45).toDouble())
+        val outerR = size.minDimension * 0.35f
+        val toothLen = size.minDimension * 0.10f
+        val toothWidth = 5f
+
+        // 6 short rounded teeth around the gear (PrimaryPink)
+        repeat(6) { i ->
+            val angle = Math.toRadians((i * 60).toDouble())
+            val cosA = cos(angle).toFloat()
+            val sinA = sin(angle).toFloat()
             drawLine(
-                AccentHotPink,
-                Offset(c.x + kotlin.math.cos(a).toFloat() * 16f, c.y + kotlin.math.sin(a).toFloat() * 16f),
-                Offset(c.x + kotlin.math.cos(a).toFloat() * 20f, c.y + kotlin.math.sin(a).toFloat() * 20f),
-                3f,
-                StrokeCap.Round
+                color = PrimaryPink,
+                start = Offset(c.x + cosA * outerR, c.y + sinA * outerR),
+                end = Offset(c.x + cosA * (outerR + toothLen), c.y + sinA * (outerR + toothLen)),
+                strokeWidth = toothWidth,
+                cap = StrokeCap.Round
             )
         }
-        drawCircle(AccentHotPink.copy(alpha = 0.45f), 6f, c, style = Stroke(3f))
-        drawCircle(TextBrown, 2f, Offset(c.x - 6f, c.y - 2f))
-        drawCircle(TextBrown, 2f, Offset(c.x + 6f, c.y - 2f))
+
+        // Main circle body (CloudWhite fill)
+        drawCircle(CloudWhite, outerR, c)
+
+        // Smaller inner circle outline (AccentHotPink)
+        drawCircle(
+            color = AccentHotPink.copy(alpha = 0.5f),
+            radius = outerR * 0.45f,
+            center = c,
+            style = Stroke(width = 3f)
+        )
+
+        // Two dot eyes (TextBrown) - subtle cat face
+        val eyeOffsetX = outerR * 0.28f
+        val eyeY = c.y - outerR * 0.08f
+        drawCircle(TextBrown, outerR * 0.10f, Offset(c.x - eyeOffsetX, eyeY))
+        drawCircle(TextBrown, outerR * 0.10f, Offset(c.x + eyeOffsetX, eyeY))
     }
 }
 
@@ -100,10 +142,17 @@ fun CatGearIcon(modifier: Modifier = Modifier, contentDescription: String = "设
 fun PawIcon(modifier: Modifier = Modifier) {
     Canvas(modifier.size(28.dp)) {
         val c = Offset(size.width / 2f, size.height / 2f)
-        drawCircle(AccentHotPink, 5f, c + Offset(0f, 5f))
-        drawCircle(PrimaryPink, 3.5f, c + Offset(-8f, -3f))
-        drawCircle(PrimaryPink, 3.5f, c + Offset(0f, -6f))
-        drawCircle(PrimaryPink, 3.5f, c + Offset(8f, -3f))
+
+        // Subtle shadow circle behind
+        drawCircle(PrimaryPink.copy(alpha = 0.15f), size.minDimension * 0.42f, c)
+
+        // Main pad (PrimaryPink)
+        drawCircle(PrimaryPink, 5.5f, c + Offset(0f, 4f))
+
+        // Toe beans (SecondaryPink)
+        drawCircle(SecondaryPink, 3.5f, c + Offset(-8f, -3f))
+        drawCircle(SecondaryPink, 3.5f, c + Offset(0f, -6f))
+        drawCircle(SecondaryPink, 3.5f, c + Offset(8f, -3f))
     }
 }
 
@@ -111,11 +160,33 @@ fun PawIcon(modifier: Modifier = Modifier) {
 fun MusicCatIcon(modifier: Modifier = Modifier) {
     Box(modifier) {
         Canvas(Modifier.size(34.dp)) {
-            val c = Offset(size.width * 0.45f, size.height * 0.54f)
-            drawCircle(PrimaryPink, 9f, c)
-            drawLine(AccentHotPink, c + Offset(8f, -18f), c + Offset(8f, 0f), 4f, StrokeCap.Round)
-            drawLine(AccentHotPink, c + Offset(8f, -18f), c + Offset(20f, -14f), 4f, StrokeCap.Round)
-            drawHeart(c + Offset(-10f, -10f), 5f, AccentHotPink)
+            val w = size.width
+            val h = size.height
+            val padX = w * 0.15f
+            val padY = h * 0.15f
+            val contentW = w * 0.70f
+            val contentH = h * 0.70f
+
+            // Music note: circle head (PrimaryPink)
+            val noteHeadCenter = Offset(padX + contentW * 0.35f, padY + contentH * 0.75f)
+            val noteHeadR = contentW * 0.18f
+            drawCircle(PrimaryPink, noteHeadR, noteHeadCenter)
+
+            // Stem (PrimaryPink, rounded cap)
+            val stemStart = Offset(noteHeadCenter.x + noteHeadR * 0.8f, noteHeadCenter.y)
+            val stemEnd = Offset(noteHeadCenter.x + noteHeadR * 0.8f, padY + contentH * 0.15f)
+            drawLine(PrimaryPink, stemStart, stemEnd, 5f, StrokeCap.Round)
+
+            // Flag (PrimaryPink, rounded cap)
+            val flagEnd = Offset(stemEnd.x + contentW * 0.25f, stemEnd.y + contentH * 0.15f)
+            drawLine(PrimaryPink, stemEnd, flagEnd, 5f, StrokeCap.Round)
+
+            // Small heart accent (AccentHotPink)
+            drawHeart(
+                Offset(padX + contentW * 0.72f, padY + contentH * 0.65f),
+                contentW * 0.12f,
+                AccentHotPink
+            )
         }
     }
 }
@@ -123,26 +194,35 @@ fun MusicCatIcon(modifier: Modifier = Modifier) {
 @Composable
 fun ToolboxIcon(modifier: Modifier = Modifier) {
     Canvas(modifier.size(34.dp).semantics { contentDescription = "百宝箱" }) {
-        val boxTop = size.height * 0.34f
+        val w = size.width
+        val h = size.height
+        val padX = w * 0.15f
+        val padY = h * 0.15f
+        val contentW = w * 0.70f
+        val contentH = h * 0.70f
+        val cornerR = minOf(contentW, contentH) * 0.25f
+
+        // Rounded rectangle bottom / box body (CloudWhite)
+        val bodyTop = padY + contentH * 0.30f
+        val bodyH = contentH * 0.70f
         drawRoundRect(
             color = CloudWhite,
-            topLeft = Offset(size.width * 0.16f, boxTop),
-            size = androidx.compose.ui.geometry.Size(size.width * 0.68f, size.height * 0.46f),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f)
+            topLeft = Offset(padX, bodyTop),
+            size = Size(contentW, bodyH),
+            cornerRadius = CornerRadius(cornerR)
         )
+
+        // Lid line (PrimaryPink) - a rounded strip on top
+        val lidH = contentH * 0.22f
         drawRoundRect(
             color = PrimaryPink,
-            topLeft = Offset(size.width * 0.12f, size.height * 0.24f),
-            size = androidx.compose.ui.geometry.Size(size.width * 0.76f, size.height * 0.2f),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f)
+            topLeft = Offset(padX, padY + contentH * 0.12f),
+            size = Size(contentW, lidH),
+            cornerRadius = CornerRadius(cornerR * 0.8f)
         )
-        drawLine(
-            color = AccentHotPink,
-            start = Offset(size.width * 0.5f, size.height * 0.26f),
-            end = Offset(size.width * 0.5f, size.height * 0.82f),
-            strokeWidth = 4f,
-            cap = StrokeCap.Round
-        )
-        drawHeart(Offset(size.width * 0.5f, size.height * 0.56f), 5.5f, AccentHotPink)
+
+        // Small heart clasp in center (AccentHotPink)
+        val claspCenter = Offset(padX + contentW * 0.5f, bodyTop + bodyH * 0.45f)
+        drawHeart(claspCenter, contentW * 0.13f, AccentHotPink)
     }
 }

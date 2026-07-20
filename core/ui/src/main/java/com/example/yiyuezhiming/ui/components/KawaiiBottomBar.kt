@@ -1,6 +1,7 @@
 package com.example.yiyuezhiming.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -17,16 +19,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.yiyuezhiming.navigation.Route
 import com.example.yiyuezhiming.ui.animation.kawaiiClickable
 import com.example.yiyuezhiming.ui.theme.AccentHotPink
-import com.example.yiyuezhiming.ui.theme.CloudWhite
-import com.example.yiyuezhiming.ui.theme.PrimaryPink
+import com.example.yiyuezhiming.ui.theme.PaleRose
+import com.example.yiyuezhiming.ui.theme.TextHint
 
 data class BottomNavItem(
     val route: Route,
@@ -49,13 +51,13 @@ fun KawaiiBottomBar(
         modifier
             .fillMaxWidth()
             .background(
-                Brush.verticalGradient(
-                    listOf(
-                        MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
-                        CloudWhite.copy(alpha = 0.96f)
-                    )
-                ),
-                RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+                MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
+                RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+            )
+            .border(
+                width = 1.dp,
+                color = PaleRose,
+                shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
             )
             .navigationBarsPadding()
             .padding(horizontal = 8.dp, vertical = 8.dp),
@@ -81,13 +83,8 @@ fun KawaiiBottomBar(
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .heightIn(min = 56.dp)
-                    .clip(RoundedCornerShape(22.dp))
-                    .background(
-                        if (selected) Brush.horizontalGradient(listOf(PrimaryPink, AccentHotPink))
-                        else Brush.horizontalGradient(listOf(Color.Transparent, Color.Transparent)),
-                        RoundedCornerShape(22.dp)
-                    )
+                    .heightIn(min = 60.dp)
+                    .clip(RoundedCornerShape(16.dp))
                     .kawaiiClickable(onClick = { onNavigate(item.route) })
                     .padding(horizontal = 4.dp, vertical = 6.dp),
                 contentAlignment = Alignment.Center
@@ -99,10 +96,17 @@ fun KawaiiBottomBar(
                     item.icon(selected)
                     Text(
                         item.label,
-                        color = if (selected) Color.White else AccentHotPink,
-                        fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
+                        color = if (selected) AccentHotPink else TextHint,
+                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                        fontSize = 11.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Clip
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size(4.dp)
+                            .clip(CircleShape)
+                            .background(if (selected) AccentHotPink else Color.Transparent)
                     )
                 }
             }
