@@ -19,8 +19,8 @@ $releaseDateLabel = Join-Chars @(0x53d1, 0x5e03, 0x65e5, 0x671f, 0xff1a)
 $updatesTitle = Join-Chars @(0x66f4, 0x65b0, 0x5185, 0x5bb9)
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
-$gradle = Join-Path $env:USERPROFILE ".gradle\wrapper\dists\gradle-8.12-bin\cetblhg4pflnnks72fxwobvgv\gradle-8.12\bin\gradle.bat"
-$jdk = Join-Path $env:USERPROFILE ".jdks\temurin-24"
+$gradle = Join-Path $repoRoot "gradlew.bat"
+$jdk = "C:\Program Files\Zulu\zulu-21"
 $apkSource = Join-Path $repoRoot "app\build\outputs\apk\debug\app-debug.apk"
 $appGradle = Join-Path $repoRoot "app\build.gradle.kts"
 $versionDir = Join-Path $repoRoot "version\$Version"
@@ -88,7 +88,7 @@ try {
     Set-Content -LiteralPath $notesTarget -Value $notesContent -Encoding UTF8
 
     git status --short | Out-Host
-    git add README.md LICENSE .gitignore scripts/release-apk.ps1 build.gradle.kts settings.gradle.kts gradle.properties app version
+    git add README.md LICENSE .gitignore scripts/release-apk.ps1 build.gradle.kts settings.gradle.kts gradle.properties gradlew.bat gradle app core feature version
     git commit -m "Release $Version"
     git tag "v$Version"
     git push origin main --tags

@@ -1,0 +1,10 @@
+{
+  "site_name": "Public domain example",
+  "catalog_url": "https://www.gutenberg.org/files/1342/1342-h/1342-h.htm",
+  "book_title": "Pride and Prejudice",
+  "chapter_link_regex": "<a\\s+[^>]*href=[\"']([^\"']+)[\"'][^>]*>(Chapter\\s+[^<]+)</a>",
+  "chapter_title_filter": "Chapter",
+  "content_regex": "<body[^>]*>(.*?)</body>",
+  "request_delay_seconds": 0.5,
+  "max_chapters": 70
+}

@@ -18,7 +18,6 @@ import androidx.navigation.compose.rememberNavController
 import com.example.yiyuezhiming.ui.components.KawaiiBottomBar
 import com.example.yiyuezhiming.ui.screens.addmemory.AddMemoryScreen
 import com.example.yiyuezhiming.ui.screens.album.AlbumScreen
-import com.example.yiyuezhiming.ui.screens.chat.AiChatScreen
 import com.example.yiyuezhiming.ui.screens.fortune.DailySignScreen
 import com.example.yiyuezhiming.ui.screens.fortune.FortuneHubScreen
 import com.example.yiyuezhiming.ui.screens.fortune.TarotScreen
@@ -50,7 +49,6 @@ fun AppNavGraph(
         Route.Tarot.path,
         Route.NovelBookshelf.path,
         Route.Toolbox.path,
-        Route.AiChat.path,
         Route.Music.path,
         Route.Settings.path
     )
@@ -119,9 +117,6 @@ fun AppNavGraph(
             composable(Route.NovelReader.path) {
                 NovelReaderScreen(onBack = { navController.popBackStack() })
             }
-            composable(Route.AiChat.path) {
-                AiChatScreen()
-            }
             composable(Route.Home.path) {
                 HomeScreen(onAddMemory = { navController.navigate(Route.AddMemory.path) })
             }
@@ -145,7 +140,8 @@ fun AppNavGraph(
             composable(Route.Settings.path) {
                 SettingsScreen(
                     darkMode = darkMode,
-                    onDarkModeChange = onDarkModeChange
+                    onDarkModeChange = onDarkModeChange,
+                    versionName = com.example.yiyuezhiming.BuildConfig.VERSION_NAME
                 )
             }
         }
