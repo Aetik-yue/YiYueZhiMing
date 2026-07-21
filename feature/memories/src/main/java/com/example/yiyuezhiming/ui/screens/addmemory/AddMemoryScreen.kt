@@ -103,9 +103,10 @@ fun AddMemoryScreen(
                             modifier = Modifier.fillMaxWidth()
                         )
                         KawaiiTextField(
-                            value = state.date.toString(),
-                            onValueChange = { runCatching { LocalDate.parse(it) }.onSuccess(viewModel::onDateChanged) },
-                            label = "日期 yyyy-MM-dd"
+                            value = state.dateText,
+                            onValueChange = viewModel::onDateTextChanged,
+                            label = "日期 yyyy-MM-dd",
+                            error = if (state.dateText.isNotBlank() && runCatching { LocalDate.parse(state.dateText) }.isFailure) "日期格式应为 yyyy-MM-dd" else null
                         )
                         MoodSelector(MockData.moods, state.selectedMood, viewModel::onMoodSelected)
                         Row(

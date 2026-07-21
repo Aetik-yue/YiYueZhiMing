@@ -35,15 +35,18 @@ class FortuneViewModel @Inject constructor(
         }
         viewModelScope.launch {
             repository.observeHistory(type).collect { history ->
-                holder.update { it.copy(history = history, today = history.firstOrNull()) }
+                // 仅更新 history，不覆盖 today（today 应由 getToday() 正确反映当日记录）
+                holder.update { it.copy(history = history) }
             }
         }
     }
 
     fun draw(type: String) {
         val holder = holder(type)
+        // 将 guard 移入协程内，避免 TOCTOU 竞争
         if (holder.value.isLoading) return
         viewModelScope.launch {
+            if (holder.value.isLoading) return@launch
             holder.update { it.copy(isLoading = true) }
             val record = if (type == FortuneRepository.TYPE_SIGN) {
                 repository.drawDailySign()

@@ -35,7 +35,8 @@ data class TocEntry(
 class EpubParser @Inject constructor() {
 
     companion object {
-        private const val MAX_ENTRY_SIZE = 5L * 1024 * 1024 // 5MB
+        private const val MAX_ENTRY_SIZE = 5L * 1024 * 1024 // 单文件 5MB
+        private const val MAX_TOTAL_SIZE = 50L * 1024 * 1024 // 总解压上限 50MB（防 zip bomb）
         private val TEXT_EXTENSIONS = setOf(".xhtml", ".html", ".htm", ".xml", ".opf", ".ncx")
         private val IMAGE_EXTENSIONS = setOf(".jpg", ".jpeg", ".png", ".gif", ".svg")
     }
@@ -145,12 +146,17 @@ class EpubParser @Inject constructor() {
 
     private fun readZip(input: InputStream, shouldInclude: (name: String, size: Long) -> Boolean): Map<String, ByteArray> {
         val map = mutableMapOf<String, ByteArray>()
+        var totalSize = 0L
         ZipInputStream(input).use { zip ->
             var entry = zip.nextEntry
             while (entry != null) {
                 if (!entry.isDirectory) {
                     val size = entry.size.takeIf { it >= 0 } ?: Long.MAX_VALUE
                     if (shouldInclude(entry.name, size)) {
+                        totalSize += size
+                        if (totalSize > MAX_TOTAL_SIZE) {
+                            throw IllegalStateException("EPUB 内容过大（超过 ${MAX_TOTAL_SIZE / 1024 / 1024}MB），可能是损坏的文件")
+                        }
                         map[entry.name] = zip.readBytes()
                     }
                 }

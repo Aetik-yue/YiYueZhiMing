@@ -127,6 +127,7 @@ class NovelReaderViewModel @Inject constructor(
     fun updateSettings(settings: ReaderSettings) {
         _state.update { it.copy(settings = settings) }
         repository.saveReaderSettings(settings)
+        repository.invalidatePageCountCache(bookId)
         repaginate()
     }
 

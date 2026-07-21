@@ -60,7 +60,15 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val prefs = remember(context) { context.getSharedPreferences("love_counter", android.content.Context.MODE_PRIVATE) }
-    val today = remember { LocalDate.now() }
+    // 用 LaunchedEffect 每分钟刷新一次日期，避免跨午夜后计数过期
+    var today by remember { mutableStateOf(LocalDate.now()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            val now = LocalDate.now()
+            if (now != today) today = now
+            kotlinx.coroutines.delay(60_000L)
+        }
+    }
     var loveStartDateText by rememberSaveable {
         mutableStateOf(prefs.getString("start_date", null) ?: today.toString())
     }
@@ -68,8 +76,8 @@ fun SettingsScreen(
     var showPasswordDialog by rememberSaveable { mutableStateOf(false) }
     var showAboutDialog by rememberSaveable { mutableStateOf(false) }
     var showLoveDateDialog by rememberSaveable { mutableStateOf(false) }
-    var passwordEnabled by rememberSaveable { mutableStateOf(false) }
-    var pin by rememberSaveable { mutableStateOf("") }
+    var passwordEnabled by rememberSaveable { mutableStateOf(prefs.getBoolean("password_enabled", false)) }
+    var pin by rememberSaveable { mutableStateOf(prefs.getString("password_pin", "") ?: "") }
     val loveStartDate = runCatching { LocalDate.parse(loveStartDateText) }.getOrDefault(today)
     val loveDays = (ChronoUnit.DAYS.between(loveStartDate, today) + 1).coerceAtLeast(1)
 
@@ -174,7 +182,15 @@ fun SettingsScreen(
                     Text("当前版本先保存本页开关状态；后续可接入启动锁屏。", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f))
                 }
             },
-            confirmButton = { TextButton(onClick = { showPasswordDialog = false }) { Text("保存") } },
+            confirmButton = {
+                TextButton(onClick = {
+                    prefs.edit()
+                        .putBoolean("password_enabled", passwordEnabled)
+                        .putString("password_pin", pin)
+                        .apply()
+                    showPasswordDialog = false
+                }) { Text("保存") }
+            },
             dismissButton = { TextButton(onClick = { showPasswordDialog = false }) { Text("取消") } }
         )
     }

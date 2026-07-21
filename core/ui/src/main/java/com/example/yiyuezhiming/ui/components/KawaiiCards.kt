@@ -97,10 +97,15 @@ fun MemoryCard(memory: Memory, onClick: () -> Unit, modifier: Modifier = Modifie
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier.kawaiiClickable {
                                         runCatching {
-                                            MediaPlayer.create(context, Uri.parse(memory.musicUri)).apply {
-                                                setOnCompletionListener { player -> player.release() }
-                                                start()
-                                            }
+                                            MediaPlayer.create(context, Uri.parse(memory.musicUri))
+                                                ?.apply {
+                                                    setOnCompletionListener { player -> player.release() }
+                                                    setOnErrorListener { player, _, _ ->
+                                                        player.release()
+                                                        true
+                                                    }
+                                                    start()
+                                                }
                                         }
                                     }
                                 )

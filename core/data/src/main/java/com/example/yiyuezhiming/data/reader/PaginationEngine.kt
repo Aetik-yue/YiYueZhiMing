@@ -45,7 +45,9 @@ class PaginationEngine(
                 while (start < text.length && text[start].isWhitespace()) start++
             }
             offset += paragraph.length + 1
-            repeat((paragraphSpacing / (fontSize + lineSpacing)).toInt().coerceAtLeast(0)) {
+            // 段落间距：至少插入 1 个空行（除非用户明确设为 0），确保段落间有视觉区分
+            val spacingLines = (paragraphSpacing / (fontSize + lineSpacing)).toInt().coerceAtLeast(1)
+            repeat(spacingLines) {
                 lines += Line("", offset, offset)
             }
         }

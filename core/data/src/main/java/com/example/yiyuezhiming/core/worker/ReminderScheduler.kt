@@ -11,6 +11,7 @@ import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.ZoneId
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -24,18 +25,48 @@ class ReminderScheduler @Inject constructor(
         val nextDate = nextOccurrence(reminder.date)
         val trigger = nextDate.atTime(LocalTime.of(9, 0))
         val delayMillis = Duration.between(LocalDateTime.now(), trigger).toMillis().coerceAtLeast(0)
+        val dateMillis = reminder.date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         val request = OneTimeWorkRequestBuilder<ReminderWorker>()
             .setInitialDelay(delayMillis, TimeUnit.MILLISECONDS)
             .setInputData(
                 workDataOf(
                     ReminderWorker.KEY_ID to reminder.id,
                     ReminderWorker.KEY_TITLE to reminder.title,
-                    ReminderWorker.KEY_TYPE to reminder.type
+                    ReminderWorker.KEY_TYPE to reminder.type,
+                    ReminderWorker.KEY_DATE to dateMillis
                 )
             )
             .build()
         WorkManager.getInstance(context).enqueueUniqueWork(
             workName(reminder.id),
+            ExistingWorkPolicy.REPLACE,
+            request
+        )
+    }
+
+    /**
+     * 提醒触发后重新调度下一年。在 Worker 中调用。
+     */
+    fun rescheduleAfterFired(id: Long, title: String, type: String, dateMillis: Long) {
+        val originalDate = LocalDate.ofEpochDay(dateMillis / 86_400_000L)
+        val nextYear = originalDate.withYear(originalDate.year + 1)
+        val now = LocalDate.now()
+        val target = if (nextYear.isBefore(now)) nextYear.plusYears(1) else nextYear
+        val trigger = target.atTime(LocalTime.of(9, 0))
+        val delayMillis = Duration.between(LocalDateTime.now(), trigger).toMillis().coerceAtLeast(0)
+        val request = OneTimeWorkRequestBuilder<ReminderWorker>()
+            .setInitialDelay(delayMillis, TimeUnit.MILLISECONDS)
+            .setInputData(
+                workDataOf(
+                    ReminderWorker.KEY_ID to id,
+                    ReminderWorker.KEY_TITLE to title,
+                    ReminderWorker.KEY_TYPE to type,
+                    ReminderWorker.KEY_DATE to dateMillis
+                )
+            )
+            .build()
+        WorkManager.getInstance(context).enqueueUniqueWork(
+            workName(id),
             ExistingWorkPolicy.REPLACE,
             request
         )

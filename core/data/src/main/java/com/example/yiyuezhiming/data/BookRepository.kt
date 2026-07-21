@@ -27,6 +27,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import kotlin.coroutines.coroutineContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
@@ -421,11 +422,17 @@ class BookRepository @Inject constructor(
         return counts
     }
 
+    /** 字号/行距/边距等设置变更后调用，使缓存失效 */
+    fun invalidatePageCountCache(bookId: String) {
+        chapterPageCountCache.remove(bookId)
+    }
+
     suspend fun renameBook(bookId: String, title: String) {
         if (title.isNotBlank()) dao.renameBook(bookId, title.trim())
     }
 
     suspend fun deleteBook(bookId: String) {
+        chapterPageCountCache.remove(bookId)
         dao.getBook(bookId)?.filePath?.let { path ->
             File(path).parentFile?.deleteRecursively()
         }
@@ -498,11 +505,13 @@ class BookRepository @Inject constructor(
         }
     }
 
-    private fun fetchRemoteNovel(url: String): RemoteNovel {
+    private suspend fun fetchRemoteNovel(url: String): RemoteNovel {
+        coroutineContext.ensureActive()
         val firstHtml = fetchText(url)
         val chapterLinks = extractChapterLinks(url, firstHtml)
         if (chapterLinks.size >= 2) {
             val chapters = chapterLinks.take(60).mapIndexed { index, link ->
+                coroutineContext.ensureActive()
                 val html = fetchText(link.url)
                 val title = link.title.ifBlank { extractHtmlTitle(html).ifBlank { "第 ${index + 1} 章" } }
                 val content = extractReadableText(html)

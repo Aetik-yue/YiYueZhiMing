@@ -24,6 +24,7 @@ data class AddMemoryUiState(
     val artistName: String = "",
     val note: String = "",
     val date: LocalDate = LocalDate.now(),
+    val dateText: String = LocalDate.now().toString(),
     val category: String = "日常",
     val isSaving: Boolean = false,
     val showHearts: Boolean = false,
@@ -44,7 +45,12 @@ class AddMemoryViewModel @Inject constructor(
     fun onSongTitleChanged(value: String) = _uiState.update { it.copy(songTitle = value) }
     fun onArtistNameChanged(value: String) = _uiState.update { it.copy(artistName = value) }
     fun onNoteChanged(value: String) = _uiState.update { it.copy(note = value, error = null) }
-    fun onDateChanged(value: LocalDate) = _uiState.update { it.copy(date = value) }
+    fun onDateTextChanged(value: String) {
+        _uiState.update {
+            val parsed = runCatching { LocalDate.parse(value) }.getOrNull()
+            it.copy(dateText = value, date = parsed ?: it.date)
+        }
+    }
     fun onCategoryChanged(value: String) = _uiState.update { it.copy(category = value) }
     fun consumeSuccess() = _uiState.update { it.copy(successMessage = null, showHearts = false) }
 

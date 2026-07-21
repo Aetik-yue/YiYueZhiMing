@@ -29,7 +29,6 @@ object AppModule {
     fun provideDatabase(@ApplicationContext context: Context): YiYueDatabase =
         Room.databaseBuilder(context, YiYueDatabase::class.java, "yi_yue.db")
             .addMigrations(MIGRATION_7_8)
-            .fallbackToDestructiveMigration()
             .build()
 
     private val MIGRATION_7_8 = object : Migration(7, 8) {
@@ -63,5 +62,6 @@ object AppModule {
         .connectTimeout(20, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)
         .writeTimeout(30, TimeUnit.SECONDS)
+        .callTimeout(120, TimeUnit.SECONDS)
         .build()
 }

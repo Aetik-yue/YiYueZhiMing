@@ -22,3 +22,4 @@ Kotlin + Jetpack Compose + Material 3 + Navigation Compose + Room + Hilt + WorkM
 
 ## 待完善方向线索
 - darkMode 未持久化(仅内存 state)；MockData 为种子数据；fallbackToDestructiveMigration(无迁移)。
+- 小说导入链：`enqueueImport` 仍在主线程同步拷贝文件、拷贝失败静默 return（2026-07-20 已修复 WorkManager/Hilt 接线 + EPUB 容错解码，见当日日志）。
