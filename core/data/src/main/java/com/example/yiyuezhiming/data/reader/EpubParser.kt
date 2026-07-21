@@ -151,13 +151,20 @@ class EpubParser @Inject constructor() {
             var entry = zip.nextEntry
             while (entry != null) {
                 if (!entry.isDirectory) {
-                    val size = entry.size.takeIf { it >= 0 } ?: Long.MAX_VALUE
-                    if (shouldInclude(entry.name, size)) {
-                        totalSize += size
-                        if (totalSize > MAX_TOTAL_SIZE) {
-                            throw IllegalStateException("EPUB 内容过大（超过 ${MAX_TOTAL_SIZE / 1024 / 1024}MB），可能是损坏的文件")
+                    val declared = entry.size.takeIf { it >= 0 }
+                    // 声明大小已知时先预过滤（提前跳过图片/大文件以省内存）；未知（流式压缩）时先读再判断
+                    val shouldRead = declared == null || shouldInclude(entry.name, declared)
+                    if (shouldRead) {
+                        val bytes = zip.readBytes()
+                        val actual = bytes.size.toLong()
+                        // 按实际大小复核（声明大小可能伪造），并累计总量防 zip bomb
+                        if (shouldInclude(entry.name, actual)) {
+                            totalSize += actual
+                            if (totalSize > MAX_TOTAL_SIZE) {
+                                throw IllegalStateException("EPUB 内容过大（超过 ${MAX_TOTAL_SIZE / 1024 / 1024}MB），可能是损坏的文件")
+                            }
+                            map[entry.name] = bytes
                         }
-                        map[entry.name] = zip.readBytes()
                     }
                 }
                 zip.closeEntry()

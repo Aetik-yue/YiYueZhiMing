@@ -48,10 +48,12 @@ class ReminderScheduler @Inject constructor(
      * 提醒触发后重新调度下一年。在 Worker 中调用。
      */
     fun rescheduleAfterFired(id: Long, title: String, type: String, dateMillis: Long) {
-        val originalDate = LocalDate.ofEpochDay(dateMillis / 86_400_000L)
+        val originalDate = java.time.Instant.ofEpochMilli(dateMillis)
+            .atZone(ZoneId.systemDefault())
+            .toLocalDate()
         val nextYear = originalDate.withYear(originalDate.year + 1)
         val now = LocalDate.now()
-        val target = if (nextYear.isBefore(now)) nextYear.plusYears(1) else nextYear
+        val target = if (!nextYear.isAfter(now)) nextYear.plusYears(1) else nextYear
         val trigger = target.atTime(LocalTime.of(9, 0))
         val delayMillis = Duration.between(LocalDateTime.now(), trigger).toMillis().coerceAtLeast(0)
         val request = OneTimeWorkRequestBuilder<ReminderWorker>()
