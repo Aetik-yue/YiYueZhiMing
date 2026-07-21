@@ -49,7 +49,6 @@ fun AppNavGraph(
         Route.Tarot.path,
         Route.NovelBookshelf.path,
         Route.Toolbox.path,
-        Route.Music.path,
         Route.Settings.path
     )
 
@@ -132,7 +131,7 @@ fun AppNavGraph(
                 AlbumScreen()
             }
             composable(Route.Music.path) {
-                MusicPlayerScreen()
+                MusicPlayerScreen(onBack = { navController.popBackStack() })
             }
             composable(Route.Reminders.path) {
                 DateReminderScreen()

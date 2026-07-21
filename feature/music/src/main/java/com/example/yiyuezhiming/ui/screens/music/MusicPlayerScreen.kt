@@ -88,6 +88,7 @@ import kotlinx.coroutines.isActive
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MusicPlayerScreen(
+    onBack: () -> Unit,
     viewModel: MusicPlayerViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -123,6 +124,11 @@ fun MusicPlayerScreen(
 
             state.isLoading -> LoadingView(Modifier.align(Alignment.Center))
 
+            state.scanError != null -> ScanErrorView(
+                message = state.scanError.orEmpty(),
+                modifier = Modifier.align(Alignment.Center)
+            )
+
             state.queue.isEmpty() -> EmptyView(Modifier.align(Alignment.Center))
 
             else -> {
@@ -132,7 +138,7 @@ fun MusicPlayerScreen(
                         .navigationBarsPadding()
                 ) {
                     PlayerTopBar(
-                        onBack = { },
+                        onBack = onBack,
                         onMore = { showPlaylist = true }
                     )
 
@@ -149,7 +155,12 @@ fun MusicPlayerScreen(
 
                     Spacer(Modifier.height(20.dp))
 
-                    QuickActions(onPlaylist = { showPlaylist = true })
+                    QuickActions(
+                        isFavorite = song?.let { state.favorites.contains(it.id) } == true,
+                        onToggleFavorite = { song?.let { viewModel.toggleFavorite(it.id) } },
+                        onPlaylist = { showPlaylist = true },
+                        onMore = { showPlaylist = true }
+                    )
 
                     Spacer(Modifier.height(24.dp))
 
@@ -174,6 +185,18 @@ fun MusicPlayerScreen(
 
                     Spacer(Modifier.height(28.dp))
                 }
+            }
+        }
+
+        state.message?.let { msg ->
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 140.dp)
+                    .background(Color.Black.copy(alpha = 0.72f), RoundedCornerShape(999.dp))
+                    .padding(horizontal = 20.dp, vertical = 10.dp)
+            ) {
+                Text(msg, color = Color.White, fontSize = 13.sp)
             }
         }
     }
@@ -327,27 +350,28 @@ private fun VinylDisc(song: Song?, isPlaying: Boolean, modifier: Modifier = Modi
                         .aspectRatio(1f)
                         .clip(CircleShape)
                 ) {
-                    if (song?.albumArtUri != null) {
+                    // 底层：渐变 + 首字占位（封面缺失或加载失败时透出）
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Brush.linearGradient(listOf(PrimaryPink, DeepRose))),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = song?.title?.take(1) ?: "♪",
+                            color = Color.White,
+                            fontSize = 44.sp,
+                            fontWeight = FontWeight.Black
+                        )
+                    }
+                    // 封面层：加载成功时覆盖底层
+                    song?.albumArtUri?.let { uri ->
                         AsyncImage(
-                            model = song.albumArtUri,
+                            model = uri,
                             contentDescription = song.title,
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop
                         )
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(Brush.linearGradient(listOf(PrimaryPink, DeepRose))),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = song?.title?.take(1) ?: "♪",
-                                color = Color.White,
-                                fontSize = 44.sp,
-                                fontWeight = FontWeight.Black
-                            )
-                        }
                     }
                 }
             }
@@ -397,7 +421,12 @@ private fun SongInfo(song: Song?) {
 }
 
 @Composable
-private fun QuickActions(onPlaylist: () -> Unit) {
+private fun QuickActions(
+    isFavorite: Boolean,
+    onToggleFavorite: () -> Unit,
+    onPlaylist: () -> Unit,
+    onMore: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -405,8 +434,9 @@ private fun QuickActions(onPlaylist: () -> Unit) {
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        QuickActionButton { canvasSize ->
-            drawHeart(Offset(canvasSize.width / 2f, canvasSize.height / 2f), canvasSize.width * 0.32f, Color.White.copy(alpha = 0.8f))
+        QuickActionButton(onClick = onToggleFavorite) { canvasSize ->
+            val heartColor = if (isFavorite) AccentHotPink else Color.White.copy(alpha = 0.8f)
+            drawHeart(Offset(canvasSize.width / 2f, canvasSize.height / 2f), canvasSize.width * 0.32f, heartColor)
         }
         QuickActionButton(onClick = onPlaylist) { canvasSize ->
             val w = canvasSize.width
@@ -419,7 +449,7 @@ private fun QuickActions(onPlaylist: () -> Unit) {
             drawCircle(c, 4f, Offset(w * 0.22f, h * 0.5f))
             drawCircle(c, 4f, Offset(w * 0.22f, h * 0.72f))
         }
-        QuickActionButton { canvasSize ->
+        QuickActionButton(onClick = onMore) { canvasSize ->
             val w = canvasSize.width
             val h = canvasSize.height
             val c = Color.White.copy(alpha = 0.8f)
@@ -776,6 +806,22 @@ private fun EmptyView(modifier: Modifier = Modifier) {
         Text("没有找到本地音乐", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
         Spacer(Modifier.height(8.dp))
         Text("把喜欢的歌下载到手机里，就能在这里播放啦", color = Color.White.copy(alpha = 0.6f), textAlign = TextAlign.Center)
+    }
+}
+
+@Composable
+private fun ScanErrorView(message: String, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier.padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text("⚠️", fontSize = 56.sp)
+        Spacer(Modifier.height(16.dp))
+        Text("扫描音乐失败", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
+        Spacer(Modifier.height(8.dp))
+        Text(message, color = Color.White.copy(alpha = 0.6f), textAlign = TextAlign.Center)
+        Spacer(Modifier.height(8.dp))
+        Text("请检查存储权限后重试", color = Color.White.copy(alpha = 0.45f), textAlign = TextAlign.Center)
     }
 }
 

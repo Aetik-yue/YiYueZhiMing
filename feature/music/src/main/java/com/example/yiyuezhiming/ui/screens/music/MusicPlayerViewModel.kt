@@ -4,12 +4,15 @@ import android.Manifest
 import android.content.ComponentName
 import android.content.Context
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import androidx.annotation.OptIn
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
@@ -42,7 +45,10 @@ data class MusicPlayerState(
     val isShuffleOn: Boolean = false,
     val repeatMode: Int = 0,
     val isLoading: Boolean = true,
-    val hasPermission: Boolean = false
+    val hasPermission: Boolean = false,
+    val scanError: String? = null,
+    val favorites: Set<Long> = emptySet(),
+    val message: String? = null
 ) {
     val currentSong: Song? get() = queue.getOrNull(currentIndex)
     val progress: Float get() = if (duration > 0) position.toFloat() / duration else 0f
@@ -54,12 +60,15 @@ class MusicPlayerViewModel @Inject constructor(
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
+    private val prefs = context.getSharedPreferences("music_player", Context.MODE_PRIVATE)
+
     private val _state = MutableStateFlow(MusicPlayerState())
     val state: StateFlow<MusicPlayerState> = _state.asStateFlow()
 
     private var controllerFuture: ListenableFuture<MediaController>? = null
     private var controller: MediaController? = null
     private var positionPollingJob: Job? = null
+    private var hasRestored = false
 
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -75,6 +84,7 @@ class MusicPlayerViewModel @Inject constructor(
                     duration = controller?.duration?.coerceAtLeast(0L) ?: 0L
                 )
             }
+            savePlaybackState()
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
@@ -97,9 +107,22 @@ class MusicPlayerViewModel @Inject constructor(
             }
             _state.update { it.copy(repeatMode = mapped) }
         }
+
+        override fun onPlayerError(error: PlaybackException) {
+            val mc = controller ?: return
+            showMessage("部分歌曲无法播放，已自动跳过")
+            if (mc.hasNextMediaItem()) {
+                mc.seekToNext()
+                mc.prepare()
+                mc.play()
+            } else {
+                _state.update { it.copy(isPlaying = false) }
+            }
+        }
     }
 
     init {
+        _state.update { it.copy(favorites = loadFavorites()) }
         checkPermissionAndLoad()
     }
 
@@ -134,11 +157,18 @@ class MusicPlayerViewModel @Inject constructor(
                     it.copy(
                         songs = songs,
                         queue = songs,
-                        isLoading = false
+                        isLoading = false,
+                        scanError = null
                     )
                 }
+                tryRestore()
             } catch (e: Exception) {
-                _state.update { it.copy(isLoading = false) }
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        scanError = "扫描音乐失败：${e.message ?: "未知错误"}"
+                    )
+                }
             }
         }
     }
@@ -171,9 +201,31 @@ class MusicPlayerViewModel @Inject constructor(
                     )
                 }
                 if (mediaController.isPlaying) startPositionPolling()
+                tryRestore()
             } catch (e: Exception) {
                 // Service not available
             }
+        }
+    }
+
+    /** 歌曲列表和播放器都就绪后，恢复上次播放的歌曲和进度（暂停态，等用户点播放） */
+    @OptIn(UnstableApi::class)
+    private fun tryRestore() {
+        if (hasRestored) return
+        val mc = controller ?: return
+        val songs = _state.value.songs
+        if (songs.isEmpty()) return
+        hasRestored = true
+        val lastId = prefs.getLong(KEY_LAST_SONG_ID, -1L)
+        val lastPosition = prefs.getLong(KEY_LAST_POSITION, 0L)
+        if (lastId < 0) return
+        val index = songs.indexOfFirst { it.id == lastId }
+        if (index < 0) return
+        mc.setMediaItems(songs.map { it.toMediaItem() }, index, lastPosition)
+        mc.prepare()
+        mc.playWhenReady = false
+        _state.update {
+            it.copy(currentIndex = index, position = lastPosition, isPlaying = false)
         }
     }
 
@@ -182,13 +234,14 @@ class MusicPlayerViewModel @Inject constructor(
         val queue = _state.value.queue
         if (index < 0 || index >= queue.size) return
 
-        val mediaItems = queue.map { song -> MediaItem.fromUri(song.uri) }
+        val mediaItems = queue.map { song -> song.toMediaItem() }
         mediaController.setMediaItems(mediaItems, index, 0L)
         mediaController.prepare()
         mediaController.playWhenReady = true
         _state.update {
             it.copy(currentIndex = index, isPlaying = true)
         }
+        savePlaybackState()
     }
 
     fun togglePlayPause() {
@@ -211,6 +264,7 @@ class MusicPlayerViewModel @Inject constructor(
     fun seekTo(positionMs: Long) {
         controller?.seekTo(positionMs)
         _state.update { it.copy(position = positionMs) }
+        savePlaybackState()
     }
 
     fun toggleShuffle() {
@@ -228,6 +282,61 @@ class MusicPlayerViewModel @Inject constructor(
         mediaController.repeatMode = nextMode
     }
 
+    fun toggleFavorite(songId: Long) {
+        val current = _state.value.favorites.toMutableSet()
+        val nowFavorite = if (current.contains(songId)) {
+            current.remove(songId); false
+        } else {
+            current.add(songId); true
+        }
+        _state.update { it.copy(favorites = current) }
+        prefs.edit()
+            .putStringSet(KEY_FAVORITES, current.map { it.toString() }.toSet())
+            .apply()
+        showMessage(if (nowFavorite) "已添加到喜欢" else "已取消喜欢")
+    }
+
+    fun consumeMessage() {
+        _state.update { it.copy(message = null) }
+    }
+
+    private fun showMessage(text: String) {
+        _state.update { it.copy(message = text) }
+        viewModelScope.launch {
+            delay(2000)
+            if (_state.value.message == text) {
+                _state.update { it.copy(message = null) }
+            }
+        }
+    }
+
+    private fun loadFavorites(): Set<Long> =
+        prefs.getStringSet(KEY_FAVORITES, emptySet())
+            ?.mapNotNull { it.toLongOrNull() }
+            ?.toSet()
+            ?: emptySet()
+
+    /** 保存当前歌曲与进度，用于下次启动恢复 */
+    private fun savePlaybackState() {
+        val song = _state.value.currentSong ?: return
+        prefs.edit()
+            .putLong(KEY_LAST_SONG_ID, song.id)
+            .putLong(KEY_LAST_POSITION, _state.value.position)
+            .apply()
+    }
+
+    private fun Song.toMediaItem(): MediaItem = MediaItem.Builder()
+        .setUri(uri)
+        .setMediaMetadata(
+            MediaMetadata.Builder()
+                .setTitle(title)
+                .setArtist(artist)
+                .setAlbumTitle(album)
+                .setArtworkUri(albumArtUri?.let { Uri.parse(it) })
+                .build()
+        )
+        .build()
+
     private fun startPositionPolling() {
         if (positionPollingJob?.isActive == true) return
         positionPollingJob = viewModelScope.launch {
@@ -240,6 +349,7 @@ class MusicPlayerViewModel @Inject constructor(
                             duration = mediaController.duration.coerceAtLeast(0L)
                         )
                     }
+                    savePlaybackState()
                 }
                 delay(500L)
             }
@@ -260,5 +370,11 @@ class MusicPlayerViewModel @Inject constructor(
         }
         controller = null
         controllerFuture = null
+    }
+
+    private companion object {
+        const val KEY_LAST_SONG_ID = "last_song_id"
+        const val KEY_LAST_POSITION = "last_position"
+        const val KEY_FAVORITES = "favorite_song_ids"
     }
 }
