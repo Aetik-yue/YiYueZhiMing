@@ -56,7 +56,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
@@ -217,15 +218,20 @@ fun MusicPlayerScreen(
 
 @Composable
 private fun PlayerBackground(song: Song?) {
+    val context = LocalContext.current
     Box(Modifier.fillMaxSize()) {
         song?.albumArtUri?.let { uri ->
             AsyncImage(
-                model = uri,
+                model = coil.request.ImageRequest.Builder(context)
+                    .data(uri)
+                    .size(50)
+                    .crossfade(false)
+                    .build(),
                 contentDescription = null,
                 modifier = Modifier
                     .fillMaxSize()
-                    .blur(90.dp)
-                    .alpha(0.5f),
+                    .blur(40.dp)
+                    .alpha(0.55f),
                 contentScale = ContentScale.Crop
             )
         }
@@ -318,7 +324,7 @@ private fun VinylDisc(song: Song?, isPlaying: Boolean, modifier: Modifier = Modi
                 .fillMaxWidth(0.82f)
                 .aspectRatio(1f)
                 .scale(scale)
-                .rotate(rotation.floatValue)
+                .graphicsLayer { rotationZ = rotation.floatValue }
                 .shadow(
                     elevation = 36.dp,
                     shape = CircleShape,

@@ -23,11 +23,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.yiyuezhiming.ui.animation.AnimatedCloudBackground
-import com.example.yiyuezhiming.ui.animation.FloatingHearts
 import com.example.yiyuezhiming.ui.components.HeartLoadingIndicator
 import com.example.yiyuezhiming.ui.components.HuggingBunnies
 import com.example.yiyuezhiming.ui.theme.AccentHotPink
@@ -43,13 +41,10 @@ fun SplashScreen(onFinished: () -> Unit) {
         onFinished()
     }
     val transition = rememberInfiniteTransition(label = "splash")
-    val scale by transition.animateFloat(1f, 1.1f, infiniteRepeatable(tween(1500, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "heart-pulse")
-    val titleY by transition.animateFloat(-5f, 5f, infiniteRepeatable(tween(2000, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "title-float")
-    val heartColorProgress by transition.animateFloat(0f, 1f, infiniteRepeatable(tween(1500), RepeatMode.Reverse), label = "heart-color")
-    val heartColor = lerp(PrimaryPink, AccentHotPink, heartColorProgress)
+    val scale by transition.animateFloat(1f, 1.08f, infiniteRepeatable(tween(1500, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "heart-pulse")
+    val titleY by transition.animateFloat(-4f, 4f, infiniteRepeatable(tween(2000, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "title-float")
 
     AnimatedCloudBackground {
-        FloatingHearts(Modifier.fillMaxSize(), 12)
         Column(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -57,7 +52,7 @@ fun SplashScreen(onFinished: () -> Unit) {
         ) {
             AnimatedVisibility(visible, enter = fadeIn(tween(700))) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("♥", color = heartColor, style = MaterialTheme.typography.displayLarge, modifier = Modifier.scale(scale))
+                    Text("♥", color = AccentHotPink, style = MaterialTheme.typography.displayLarge, modifier = Modifier.scale(scale))
                     HuggingBunnies(Modifier.scale(scale * 0.92f))
                     Text(
                         "以越之名",

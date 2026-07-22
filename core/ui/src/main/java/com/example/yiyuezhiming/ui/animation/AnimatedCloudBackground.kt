@@ -36,7 +36,7 @@ fun AnimatedCloudBackground(
     val drift by transition.animateFloat(
         0f,
         1f,
-        infiniteRepeatable(tween(15000, easing = LinearEasing), RepeatMode.Restart),
+        infiniteRepeatable(tween(25000, easing = LinearEasing), RepeatMode.Restart),
         label = "cloud-drift"
     )
     Box(modifier.fillMaxSize()) {
@@ -50,17 +50,17 @@ fun AnimatedCloudBackground(
             drawCloud(Offset(size.width * (0.18f + drift * 0.08f), size.height * 0.13f), 70f, cloudColor)
             drawCloud(Offset(size.width * (0.82f - drift * 0.1f), size.height * 0.28f), 92f, cloudColor.copy(alpha = 0.58f))
             drawCloud(Offset(size.width * (0.25f + drift * 0.06f), size.height * 0.78f), 110f, cloudColor.copy(alpha = 0.5f))
-            repeat(18) { i ->
-                val x = (i * 73f + drift * 180f) % size.width
-                val y = (i * 97f) % size.height
-                rotate(i * 17f + drift * 60f, Offset(x, y)) {
-                    drawHeart(Offset(x, y), 6f + i % 4, PrimaryPink.copy(alpha = if (dark) 0.16f else 0.22f))
+            repeat(6) { i ->
+                val x = (i * 137f + drift * 120f) % size.width
+                val y = (i * 173f + 40f) % size.height
+                rotate(i * 23f + drift * 40f, Offset(x, y)) {
+                    drawHeart(Offset(x, y), 7f + i % 3, PrimaryPink.copy(alpha = if (dark) 0.14f else 0.20f))
                 }
             }
-            repeat(10) { i ->
+            repeat(4) { i ->
                 drawPaw(
-                    Offset((i * 111f + drift * 90f) % size.width, (i * 143f + 60f) % size.height),
-                    PrimaryPink.copy(alpha = if (dark) 0.1f else 0.18f)
+                    Offset((i * 157f + drift * 60f) % size.width, (i * 199f + 80f) % size.height),
+                    PrimaryPink.copy(alpha = if (dark) 0.08f else 0.14f)
                 )
             }
         }
