@@ -82,8 +82,13 @@ import com.example.yiyuezhiming.model.Song
 import com.example.yiyuezhiming.ui.animation.drawHeart
 import com.example.yiyuezhiming.ui.animation.kawaiiClickable
 import com.example.yiyuezhiming.ui.theme.AccentHotPink
+import com.example.yiyuezhiming.ui.theme.BackgroundPink
 import com.example.yiyuezhiming.ui.theme.DeepRose
+import com.example.yiyuezhiming.ui.theme.PaleRose
 import com.example.yiyuezhiming.ui.theme.PrimaryPink
+import com.example.yiyuezhiming.ui.theme.SoftBlush
+import com.example.yiyuezhiming.ui.theme.TextBrown
+import com.example.yiyuezhiming.ui.theme.TextSecondary
 import kotlinx.coroutines.isActive
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -105,7 +110,7 @@ fun MusicPlayerScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(Color(0xFF3A1F2B), Color(0xFF1A0F16), Color(0xFF0A060A))))
+            .background(Brush.verticalGradient(listOf(SoftBlush, BackgroundPink, PrimaryPink.copy(alpha = 0.35f))))
     ) {
         PlayerBackground(song)
 
@@ -194,10 +199,11 @@ fun MusicPlayerScreen(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = 140.dp)
-                    .background(Color.Black.copy(alpha = 0.72f), RoundedCornerShape(999.dp))
+                    .shadow(8.dp, RoundedCornerShape(999.dp))
+                    .background(SoftBlush, RoundedCornerShape(999.dp))
                     .padding(horizontal = 20.dp, vertical = 10.dp)
             ) {
-                Text(msg, color = Color.White, fontSize = 13.sp)
+                Text(msg, color = TextBrown, fontSize = 13.sp)
             }
         }
     }
@@ -241,9 +247,9 @@ private fun PlayerBackground(song: Song?) {
                 .background(
                     Brush.verticalGradient(
                         listOf(
-                            Color(0xFF2A1620).copy(alpha = 0.55f),
-                            Color(0xFF120A10).copy(alpha = 0.75f),
-                            Color(0xFF0A060A).copy(alpha = 0.9f)
+                            SoftBlush.copy(alpha = 0.72f),
+                            BackgroundPink.copy(alpha = 0.8f),
+                            PrimaryPink.copy(alpha = 0.45f)
                         )
                     )
                 )
@@ -266,15 +272,15 @@ private fun PlayerTopBar(onBack: () -> Unit, onMore: () -> Unit) {
             contentAlignment = Alignment.Center
         ) {
             Canvas(Modifier.size(22.dp)) {
-                drawLine(Color.White.copy(alpha = 0.85f), Offset(size.width * 0.7f, size.height * 0.15f), Offset(size.width * 0.25f, size.height * 0.5f), 4f, StrokeCap.Round)
-                drawLine(Color.White.copy(alpha = 0.85f), Offset(size.width * 0.25f, size.height * 0.5f), Offset(size.width * 0.7f, size.height * 0.85f), 4f, StrokeCap.Round)
+                drawLine(TextBrown, Offset(size.width * 0.7f, size.height * 0.15f), Offset(size.width * 0.25f, size.height * 0.5f), 4f, StrokeCap.Round)
+                drawLine(TextBrown, Offset(size.width * 0.25f, size.height * 0.5f), Offset(size.width * 0.7f, size.height * 0.85f), 4f, StrokeCap.Round)
             }
         }
         Column(
             modifier = Modifier.weight(1f),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("正在播放", color = Color.White.copy(alpha = 0.9f), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            Text("正在播放", color = TextBrown, fontWeight = FontWeight.Bold, fontSize = 15.sp)
         }
         Box(
             modifier = Modifier
@@ -284,9 +290,9 @@ private fun PlayerTopBar(onBack: () -> Unit, onMore: () -> Unit) {
         ) {
             Canvas(Modifier.size(20.dp)) {
                 val cy = size.height / 2f
-                drawCircle(Color.White.copy(alpha = 0.85f), 3f, Offset(size.width * 0.2f, cy))
-                drawCircle(Color.White.copy(alpha = 0.85f), 3f, Offset(size.width * 0.5f, cy))
-                drawCircle(Color.White.copy(alpha = 0.85f), 3f, Offset(size.width * 0.8f, cy))
+                drawCircle(TextBrown, 3f, Offset(size.width * 0.2f, cy))
+                drawCircle(TextBrown, 3f, Offset(size.width * 0.5f, cy))
+                drawCircle(TextBrown, 3f, Offset(size.width * 0.8f, cy))
             }
         }
     }
@@ -403,7 +409,7 @@ private fun SongInfo(song: Song?) {
     ) {
         Text(
             text = song?.title ?: "未选择歌曲",
-            color = Color.White,
+            color = TextBrown,
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.ExtraBold,
             maxLines = 1,
@@ -416,7 +422,7 @@ private fun SongInfo(song: Song?) {
                 .filter { it.isNotBlank() }
                 .joinToString(" · ")
                 .ifBlank { "未知歌手" },
-            color = Color.White.copy(alpha = 0.55f),
+            color = TextSecondary,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Medium,
             maxLines = 1,
@@ -441,13 +447,13 @@ private fun QuickActions(
         verticalAlignment = Alignment.CenterVertically
     ) {
         QuickActionButton(onClick = onToggleFavorite) { canvasSize ->
-            val heartColor = if (isFavorite) AccentHotPink else Color.White.copy(alpha = 0.8f)
+            val heartColor = if (isFavorite) AccentHotPink else TextSecondary
             drawHeart(Offset(canvasSize.width / 2f, canvasSize.height / 2f), canvasSize.width * 0.32f, heartColor)
         }
         QuickActionButton(onClick = onPlaylist) { canvasSize ->
             val w = canvasSize.width
             val h = canvasSize.height
-            val c = Color.White.copy(alpha = 0.8f)
+            val c = TextBrown
             drawLine(c, Offset(w * 0.35f, h * 0.28f), Offset(w * 0.8f, h * 0.28f), 3.5f, StrokeCap.Round)
             drawLine(c, Offset(w * 0.35f, h * 0.5f), Offset(w * 0.8f, h * 0.5f), 3.5f, StrokeCap.Round)
             drawLine(c, Offset(w * 0.35f, h * 0.72f), Offset(w * 0.8f, h * 0.72f), 3.5f, StrokeCap.Round)
@@ -458,7 +464,7 @@ private fun QuickActions(
         QuickActionButton(onClick = onMore) { canvasSize ->
             val w = canvasSize.width
             val h = canvasSize.height
-            val c = Color.White.copy(alpha = 0.8f)
+            val c = TextBrown
             drawCircle(c, 3f, Offset(w * 0.25f, h * 0.5f))
             drawCircle(c, 3f, Offset(w * 0.5f, h * 0.5f))
             drawCircle(c, 3f, Offset(w * 0.75f, h * 0.5f))
@@ -528,12 +534,12 @@ private fun SeekBar(
             ) {
                 Canvas(Modifier.fillMaxWidth().height(barHeight)) {
                     drawRoundRect(
-                        color = Color.White.copy(alpha = 0.2f),
+                        color = PaleRose,
                         size = size,
                         cornerRadius = CornerRadius(999f, 999f)
                     )
                     drawRoundRect(
-                        color = Color.White,
+                        brush = Brush.horizontalGradient(listOf(PrimaryPink, AccentHotPink)),
                         size = Size(size.width * progress.coerceIn(0f, 1f), size.height),
                         cornerRadius = CornerRadius(999f, 999f)
                     )
@@ -544,7 +550,7 @@ private fun SeekBar(
                         .size(thumbSize)
                         .shadow(6.dp, CircleShape)
                         .clip(CircleShape)
-                        .background(Color.White)
+                        .background(AccentHotPink)
                 )
             }
         }
@@ -560,7 +566,7 @@ private fun SeekBar(
 private fun TimeText(text: String) {
     Text(
         text = text,
-        color = Color.White.copy(alpha = 0.45f),
+        color = TextSecondary,
         style = MaterialTheme.typography.labelMedium,
         fontWeight = FontWeight.Medium,
         fontFamily = FontFamily.Monospace
@@ -679,7 +685,7 @@ private fun TransportButton(
         modifier = modifier.kawaiiClickable(pressedScale = 0.9f, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        ControlIconCanvas(icon, Color.White.copy(alpha = 0.9f), Modifier.size(iconSize))
+        ControlIconCanvas(icon, TextBrown, Modifier.size(iconSize))
     }
 }
 
@@ -692,7 +698,7 @@ private fun ToggleControlButton(
     iconSize: androidx.compose.ui.unit.Dp
 ) {
     val color by animateColorAsState(
-        if (checked) AccentHotPink else Color.White.copy(alpha = 0.5f),
+        if (checked) AccentHotPink else TextSecondary,
         label = "toggle-color"
     )
     Box(
@@ -768,11 +774,11 @@ private fun PermissionView(onRequest: () -> Unit, modifier: Modifier = Modifier)
     ) {
         Text("🎵", fontSize = 56.sp)
         Spacer(Modifier.height(16.dp))
-        Text("需要访问你的音乐", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
+        Text("需要访问你的音乐", color = TextBrown, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
         Spacer(Modifier.height(8.dp))
         Text(
             "授权后即可扫描并播放设备里的本地音乐",
-            color = Color.White.copy(alpha = 0.6f),
+            color = TextSecondary,
             textAlign = TextAlign.Center
         )
         Spacer(Modifier.height(24.dp))
@@ -796,7 +802,7 @@ private fun LoadingView(modifier: Modifier = Modifier) {
     Text(
         "正在扫描音乐...",
         modifier = modifier,
-        color = Color.White.copy(alpha = alpha),
+        color = TextBrown.copy(alpha = alpha),
         fontWeight = FontWeight.Medium
     )
 }
@@ -809,9 +815,9 @@ private fun EmptyView(modifier: Modifier = Modifier) {
     ) {
         Text("🎧", fontSize = 56.sp)
         Spacer(Modifier.height(16.dp))
-        Text("没有找到本地音乐", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
+        Text("没有找到本地音乐", color = TextBrown, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
         Spacer(Modifier.height(8.dp))
-        Text("把喜欢的歌下载到手机里，就能在这里播放啦", color = Color.White.copy(alpha = 0.6f), textAlign = TextAlign.Center)
+        Text("把喜欢的歌下载到手机里，就能在这里播放啦", color = TextSecondary, textAlign = TextAlign.Center)
     }
 }
 
@@ -823,11 +829,11 @@ private fun ScanErrorView(message: String, modifier: Modifier = Modifier) {
     ) {
         Text("⚠️", fontSize = 56.sp)
         Spacer(Modifier.height(16.dp))
-        Text("扫描音乐失败", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
+        Text("扫描音乐失败", color = TextBrown, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
         Spacer(Modifier.height(8.dp))
-        Text(message, color = Color.White.copy(alpha = 0.6f), textAlign = TextAlign.Center)
+        Text(message, color = TextSecondary, textAlign = TextAlign.Center)
         Spacer(Modifier.height(8.dp))
-        Text("请检查存储权限后重试", color = Color.White.copy(alpha = 0.45f), textAlign = TextAlign.Center)
+        Text("请检查存储权限后重试", color = TextSecondary.copy(alpha = 0.7f), textAlign = TextAlign.Center)
     }
 }
 
