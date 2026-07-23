@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -41,8 +42,11 @@ import com.example.yiyuezhiming.ui.animation.drawHeart
 import com.example.yiyuezhiming.ui.animation.kawaiiClickable
 import com.example.yiyuezhiming.ui.theme.AccentHotPink
 import com.example.yiyuezhiming.ui.theme.CloudWhite
+import com.example.yiyuezhiming.ui.theme.CreamPink
+import com.example.yiyuezhiming.ui.theme.DeepRose
 import com.example.yiyuezhiming.ui.theme.PrimaryPink
 import com.example.yiyuezhiming.ui.theme.SecondaryPink
+import com.example.yiyuezhiming.ui.theme.TextSecondary
 
 @Composable
 fun MemoryCard(memory: Memory, onClick: () -> Unit, modifier: Modifier = Modifier) {
@@ -224,35 +228,116 @@ fun AlbumPhotoCard(memory: Memory, onClick: () -> Unit, modifier: Modifier = Mod
 }
 
 @Composable
-fun ReminderEnvelopeCard(reminder: Reminder, modifier: Modifier = Modifier) {
+fun ReminderEnvelopeCard(
+    reminder: Reminder,
+    modifier: Modifier = Modifier,
+    isHighlighted: Boolean = false,
+    onClick: () -> Unit = {},
+    onLongClick: () -> Unit = {}
+) {
+    val days = reminder.daysLeftValue
+    val countdownColor = when {
+        days <= 0L -> AccentHotPink      // 今天
+        days <= 7L -> DeepRose           // 一周内，暖提示
+        else -> TextSecondary            // 较远，克制灰粉
+    }
+    val cardBg = if (isHighlighted) CreamPink.copy(alpha = 0.55f) else MaterialTheme.colorScheme.surface.copy(alpha = 0.94f)
+
     Card(
-        modifier = modifier.shadow(8.dp, RoundedCornerShape(22.dp), ambientColor = PrimaryPink.copy(alpha = 0.12f), spotColor = PrimaryPink.copy(alpha = 0.08f)),
+        modifier = modifier
+            .shadow(4.dp, RoundedCornerShape(22.dp), ambientColor = PrimaryPink.copy(alpha = 0.1f), spotColor = PrimaryPink.copy(alpha = 0.06f))
+            .kawaiiClickable(onClick = onClick, onLongClick = onLongClick),
         shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface.copy(alpha = 0.94f))
+        colors = CardDefaults.cardColors(cardBg)
     ) {
-        Row(
-            Modifier.fillMaxWidth().padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            Box(
-                Modifier
-                    .background(Brush.verticalGradient(listOf(PrimaryPink, AccentHotPink)), RoundedCornerShape(18.dp))
-                    .padding(horizontal = 12.dp, vertical = 14.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(reminder.dateText, color = Color.White, fontWeight = FontWeight.ExtraBold)
+        Box {
+            // 最近日子的强调竖条
+            if (isHighlighted) {
+                Box(
+                    Modifier
+                        .align(Alignment.CenterStart)
+                        .width(4.dp)
+                        .height(46.dp)
+                        .background(AccentHotPink, RoundedCornerShape(999.dp))
+                )
             }
-            Column(Modifier.weight(1f)) {
-                Text(reminder.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text(reminder.type, color = PrimaryPink)
-            }
-            Box(
-                Modifier
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.82f), RoundedCornerShape(14.dp))
-                    .padding(horizontal = 10.dp, vertical = 7.dp)
+            Row(
+                Modifier.fillMaxWidth().padding(start = if (isHighlighted) 16.dp else 20.dp, end = 20.dp, top = 16.dp, bottom = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text(reminder.daysLeft, color = AccentHotPink, fontWeight = FontWeight.SemiBold)
+                // 左侧：大号日期数字 + 月份，纯排版无填充
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        reminder.dayText,
+                        color = AccentHotPink,
+                        fontWeight = FontWeight.ExtraBold,
+                        style = MaterialTheme.typography.headlineMedium
+                    )
+                    Text(
+                        reminder.monthText,
+                        color = TextSecondary,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+                // 细分隔线
+                Box(
+                    Modifier
+                        .width(1.dp)
+                        .height(34.dp)
+                        .background(PrimaryPink.copy(alpha = 0.22f))
+                )
+                // 中间：标题 + 类型
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        reminder.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        // 提醒开关小铃铛
+                        Text(
+                            if (reminder.isEnabled) "🔔" else "🔕",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Text(
+                            reminder.type,
+                            color = TextSecondary,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+                // 右侧：倒计时数字（色彩分级）+ 单位
+                Column(horizontalAlignment = Alignment.End) {
+                    if (days <= 0L) {
+                        Text("今天", color = countdownColor, fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.titleMedium)
+                    } else {
+                        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(
+                                "$days",
+                                color = countdownColor,
+                                fontWeight = FontWeight.ExtraBold,
+                                style = MaterialTheme.typography.headlineMedium
+                            )
+                            Text(
+                                "天",
+                                color = countdownColor,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(bottom = 4.dp)
+                            )
+                        }
+                    }
+                    Text(
+                        "后",
+                        color = countdownColor.copy(alpha = 0.7f),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
             }
         }
     }

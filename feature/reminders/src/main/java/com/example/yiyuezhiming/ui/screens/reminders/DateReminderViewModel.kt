@@ -37,7 +37,11 @@ class DateReminderViewModel @Inject constructor(
             repository.seedIfEmpty(MockData.reminders)
             repository.observeReminders()
                 .catch { error -> _uiState.update { it.copy(error = error.message ?: "提醒加载失败") } }
-                .collect { reminders -> _uiState.update { it.copy(reminders = reminders) } }
+                .collect { reminders ->
+                    // 按距下一次到来的天数升序，最近的日子永远置顶（与"倒计时"产品逻辑一致）
+                    val sorted = reminders.sortedBy { it.daysLeftValue }
+                    _uiState.update { it.copy(reminders = sorted) }
+                }
         }
     }
 

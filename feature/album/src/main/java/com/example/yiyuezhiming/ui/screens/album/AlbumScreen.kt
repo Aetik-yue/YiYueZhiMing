@@ -16,13 +16,14 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -42,7 +43,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -50,13 +53,16 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.SubcomposeAsyncImage
 import com.example.yiyuezhiming.model.AlbumPhoto
 import com.example.yiyuezhiming.ui.animation.AnimatedCloudBackground
+import com.example.yiyuezhiming.ui.animation.StaggeredItem
 import com.example.yiyuezhiming.ui.animation.kawaiiClickable
+import com.example.yiyuezhiming.ui.components.BearWithAlbum
 import com.example.yiyuezhiming.ui.components.CloudChip
 import com.example.yiyuezhiming.ui.components.EmptyStateView
 import com.example.yiyuezhiming.ui.components.HeartLoadingIndicator
@@ -64,10 +70,11 @@ import com.example.yiyuezhiming.ui.components.KawaiiTextField
 import com.example.yiyuezhiming.ui.components.KawaiiTopBar
 import com.example.yiyuezhiming.ui.components.CategoryInputDialog
 import com.example.yiyuezhiming.ui.theme.AccentHotPink
-import com.example.yiyuezhiming.ui.theme.BackgroundPink
 import com.example.yiyuezhiming.ui.theme.CloudWhite
 import com.example.yiyuezhiming.ui.theme.PrimaryPink
 import com.example.yiyuezhiming.ui.theme.SecondaryPink
+import com.example.yiyuezhiming.ui.theme.SkyBlush
+import com.example.yiyuezhiming.ui.theme.SoftBlush
 import java.time.LocalDate
 
 @Composable
@@ -88,6 +95,8 @@ fun AlbumScreen(
         viewModel.consumeSuccess()
     }
 
+    val canImport = !state.isImporting && state.selectedCategory.isNotBlank()
+
     AnimatedCloudBackground {
         Scaffold(
             containerColor = Color.Transparent,
@@ -98,9 +107,9 @@ fun AlbumScreen(
                     right = {
                         CloudChip(
                             text = if (state.isImporting) "导入中" else "导入",
-                            selected = true,
+                            selected = canImport,
                             onClick = {
-                                if (!state.isImporting && state.selectedCategory.isNotBlank()) {
+                                if (canImport) {
                                     photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                                 }
                             }
@@ -123,29 +132,34 @@ fun AlbumScreen(
                 } else {
                     Spacer(Modifier.height(10.dp))
                 }
-                LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                // 分类筛选栏：clipToBounds 防止选中态 1.08x 缩放与邻居重叠
+                LazyRow(
+                    modifier = Modifier.clipToBounds(),
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     items(state.categories) { category ->
                         CloudChip(category, selected = state.selectedCategory == category, onClick = { viewModel.setCategory(category) })
                     }
                     item { CloudChip("+分类", selected = false, onClick = { showCategoryDialog = true }) }
                 }
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(12.dp))
                 when {
                     state.isLoading -> Text("正在整理照片…", modifier = Modifier.padding(16.dp), color = AccentHotPink)
                     state.error != null -> Text(state.error.orEmpty(), modifier = Modifier.padding(16.dp), color = MaterialTheme.colorScheme.error)
                     state.visiblePhotos.isEmpty() -> EmptyStateView(
                         title = "这个分类还没有照片",
-                        message = "选择当前分类后导入照片，它们只会留在这个分类里。",
+                        message = "选好当前分类后点导入，它们会乖乖留在这里。",
                         buttonText = "导入照片",
                         onButtonClick = {
-                            if (state.selectedCategory.isNotBlank()) {
+                            if (canImport) {
                                 photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                             }
                         },
-                        animal = { Box(Modifier.size(1.dp)) },
+                        animal = { BearWithAlbum(Modifier.size(120.dp)) },
                         modifier = Modifier.fillMaxSize()
                     )
-                    else -> AlbumTimeline(
+                    else -> AlbumPhotoGrid(
                         photos = state.visiblePhotos,
                         onPhotoClick = { selectedPhoto = it }
                     )
@@ -178,34 +192,51 @@ fun AlbumScreen(
     }
 }
 
+/**
+ * 3 列瀑布流网格：日期作为全宽分隔卡片，照片交错高度营造瀑布感。
+ */
 @Composable
-private fun AlbumTimeline(
+private fun AlbumPhotoGrid(
     photos: List<AlbumPhoto>,
     onPhotoClick: (AlbumPhoto) -> Unit
 ) {
     val groups = photos.groupBy { it.takenDate }.toSortedMap(compareByDescending<LocalDate> { it })
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 12.dp, end = 16.dp, bottom = 92.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
-    ) {
+    val flatItems = buildList {
         groups.forEach { (date, datePhotos) ->
-            item(key = date.toString()) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    TimelineDate(date = date, modifier = Modifier.width(68.dp))
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        datePhotos.chunked(2).forEach { rowPhotos ->
-                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                rowPhotos.forEach { photo ->
-                                    AlbumPhotoTile(
-                                        photo = photo,
-                                        modifier = Modifier.weight(1f),
-                                        onClick = { onPhotoClick(photo) }
-                                    )
-                                }
-                                if (rowPhotos.size == 1) Spacer(Modifier.weight(1f))
-                            }
-                        }
+            add(AlbumGridItem.DateHeader(date, datePhotos.size))
+            datePhotos.forEachIndexed { index, photo ->
+                add(AlbumGridItem.Photo(photo, index))
+            }
+        }
+    }
+
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(3),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 4.dp, bottom = 88.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        flatItems.forEachIndexed { gridIndex, item ->
+            when (item) {
+                is AlbumGridItem.DateHeader -> item(
+                    key = "date-${item.date}",
+                    span = { GridItemSpan(3) }
+                ) {
+                    StaggeredItem(gridIndex) {
+                        DateHeaderRow(date = item.date, count = item.count)
+                    }
+                }
+                is AlbumGridItem.Photo -> item(
+                    key = "photo-${item.photo.id}",
+                    span = { GridItemSpan(1) }
+                ) {
+                    StaggeredItem(gridIndex) {
+                        AlbumPhotoTile(
+                            photo = item.photo,
+                            aspectRatio = masonryRatio(item.indexInDate),
+                            onClick = { onPhotoClick(item.photo) }
+                        )
                     }
                 }
             }
@@ -213,26 +244,62 @@ private fun AlbumTimeline(
     }
 }
 
+private sealed interface AlbumGridItem {
+    data class DateHeader(val date: LocalDate, val count: Int) : AlbumGridItem
+    data class Photo(val photo: AlbumPhoto, val indexInDate: Int) : AlbumGridItem
+}
+
+/** 瀑布流交错高度：第 0/3 张偏高，第 1 张方，第 2 张略高，循环营造错落感 */
+private fun masonryRatio(indexInDate: Int): Float = when (indexInDate % 3) {
+    0 -> 0.78f   // 偏竖
+    1 -> 1f      // 方
+    else -> 0.88f // 略竖
+}
+
 @Composable
-private fun TimelineDate(date: LocalDate, modifier: Modifier = Modifier) {
-    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            "%02d.%02d".format(date.monthValue, date.dayOfMonth),
-            color = AccentHotPink,
-            fontWeight = FontWeight.ExtraBold
-        )
-        Text(
-            "${date.year}",
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.SemiBold
-        )
-        Spacer(Modifier.height(8.dp))
+private fun DateHeaderRow(date: LocalDate, count: Int) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 6.dp, bottom = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        // 日期胶囊：相册专属 SkyBlush 渐变
+        Box(
+            modifier = Modifier
+                .shadow(4.dp, RoundedCornerShape(14.dp), ambientColor = PrimaryPink.copy(alpha = 0.18f))
+                .clip(RoundedCornerShape(14.dp))
+                .background(Brush.horizontalGradient(listOf(SkyBlush, SoftBlush)))
+                .padding(horizontal = 14.dp, vertical = 8.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "%02d.%02d".format(date.monthValue, date.dayOfMonth),
+                    color = AccentHotPink,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 16.sp
+                )
+                Text(
+                    "${date.year}",
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+        // 分隔线
         Box(
             Modifier
-                .width(3.dp)
-                .height(96.dp)
-                .background(PrimaryPink.copy(alpha = 0.42f), RoundedCornerShape(999.dp))
+                .weight(1f)
+                .height(1.dp)
+                .background(PrimaryPink.copy(alpha = 0.22f), RoundedCornerShape(999.dp))
+        )
+        Text(
+            "$count 张",
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.SemiBold
         )
     }
 }
@@ -240,13 +307,14 @@ private fun TimelineDate(date: LocalDate, modifier: Modifier = Modifier) {
 @Composable
 private fun AlbumPhotoTile(
     photo: AlbumPhoto,
-    modifier: Modifier = Modifier,
+    aspectRatio: Float,
     onClick: () -> Unit
 ) {
     Card(
-        modifier = modifier
-            .aspectRatio(1f)
-            .shadow(7.dp, RoundedCornerShape(18.dp), ambientColor = PrimaryPink.copy(alpha = 0.12f))
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(aspectRatio)
+            .shadow(7.dp, RoundedCornerShape(18.dp), ambientColor = PrimaryPink.copy(alpha = 0.14f), spotColor = PrimaryPink.copy(alpha = 0.08f))
             .kawaiiClickable(onClick = onClick),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(Color.Transparent)
@@ -254,7 +322,7 @@ private fun AlbumPhotoTile(
         Box(
             Modifier
                 .fillMaxSize()
-                .background(Brush.linearGradient(listOf(CloudWhite, SecondaryPink.copy(alpha = 0.42f))))
+                .background(Brush.linearGradient(listOf(SkyBlush, SecondaryPink.copy(alpha = 0.4f))))
         ) {
             SubcomposeAsyncImage(
                 model = photo.uri,
@@ -263,9 +331,17 @@ private fun AlbumPhotoTile(
                     .matchParentSize()
                     .clip(RoundedCornerShape(18.dp)),
                 contentScale = ContentScale.Crop,
-                error = {
+                loading = {
                     Box(Modifier.matchParentSize(), contentAlignment = Alignment.Center) {
-                        Text("加载失败", color = AccentHotPink, fontWeight = FontWeight.Bold)
+                        HeartLoadingIndicator(Modifier.size(22.dp))
+                    }
+                },
+                error = {
+                    Box(
+                        Modifier.matchParentSize().background(CloudWhite.copy(alpha = 0.6f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("加载失败", color = AccentHotPink, fontWeight = FontWeight.Bold, fontSize = 11.sp)
                     }
                 }
             )
@@ -274,9 +350,9 @@ private fun AlbumPhotoTile(
                     photo.memoryTag,
                     modifier = Modifier
                         .align(Alignment.BottomStart)
-                        .padding(8.dp)
-                        .background(Color.White.copy(alpha = 0.78f), RoundedCornerShape(999.dp))
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                        .padding(6.dp)
+                        .background(Color.White.copy(alpha = 0.82f), RoundedCornerShape(999.dp))
+                        .padding(horizontal = 8.dp, vertical = 3.dp),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     color = AccentHotPink,
@@ -316,10 +392,11 @@ private fun AlbumPhotoPreview(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
+                // 响应式高度：最大 480dp，但允许根据屏幕收缩
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(480.dp)
+                        .heightIn(max = 480.dp)
                         .clip(RoundedCornerShape(26.dp))
                         .background(CloudWhite.copy(alpha = 0.12f)),
                     contentAlignment = Alignment.Center
@@ -327,7 +404,7 @@ private fun AlbumPhotoPreview(
                     SubcomposeAsyncImage(
                         model = photo.uri,
                         contentDescription = "放大的相册照片",
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxWidth(),
                         contentScale = ContentScale.Fit
                     )
                 }

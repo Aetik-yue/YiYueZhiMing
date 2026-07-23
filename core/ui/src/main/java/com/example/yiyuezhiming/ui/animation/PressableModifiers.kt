@@ -2,7 +2,9 @@ package com.example.yiyuezhiming.ui.animation
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.material3.ripple
@@ -17,6 +19,7 @@ import com.example.yiyuezhiming.ui.theme.PrimaryPink
 fun Modifier.kawaiiClickable(
     enabled: Boolean = true,
     pressedScale: Float = 0.96f,
+    onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit
 ): Modifier {
     val interactionSource = remember { MutableInteractionSource() }
@@ -26,10 +29,24 @@ fun Modifier.kawaiiClickable(
         animationSpec = spring(dampingRatio = 0.55f, stiffness = 520f),
         label = "kawaii-click"
     )
-    return scale(scale).clickable(
-        enabled = enabled,
-        interactionSource = interactionSource,
-        indication = ripple(color = PrimaryPink.copy(alpha = 0.35f)),
-        onClick = onClick
-    )
+    val ripple = ripple(color = PrimaryPink.copy(alpha = 0.35f))
+    return scale(scale).let {
+        if (onLongClick != null) {
+            @OptIn(ExperimentalFoundationApi::class)
+            it.combinedClickable(
+                enabled = enabled,
+                interactionSource = interactionSource,
+                indication = ripple,
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
+        } else {
+            it.clickable(
+                enabled = enabled,
+                interactionSource = interactionSource,
+                indication = ripple,
+                onClick = onClick
+            )
+        }
+    }
 }
