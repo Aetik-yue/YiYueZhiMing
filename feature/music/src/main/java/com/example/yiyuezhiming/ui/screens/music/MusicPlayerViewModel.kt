@@ -152,7 +152,9 @@ class MusicPlayerViewModel @Inject constructor(
     private fun loadSongs() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val songs = repository.scanDeviceMusic()
+                val builtIn = BuiltInSongs.toSongs(context)
+                val scanned = repository.scanDeviceMusic()
+                val songs = builtIn + scanned
                 _state.update {
                     it.copy(
                         songs = songs,

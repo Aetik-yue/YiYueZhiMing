@@ -1,0 +1,25 @@
+如何添加内置歌曲
+==================
+
+1. 把你录制好的音频文件（建议 .mp3 格式）复制到本目录：
+   feature/music/src/main/res/raw/
+
+2. 文件名只能用小写字母、数字和下划线，例如：
+   first_song.mp3
+   our_story.mp3
+   summer_2026.mp3
+
+3. 打开同模块下的 BuiltInSongs.kt
+   (feature/music/src/main/java/com/example/yiyuezhiming/ui/screens/music/BuiltInSongs.kt)
+   在 list 里按格式添加一行：
+
+   BuiltInSong(rawResName = "first_song", title = "第一首歌", artist = "我"),
+
+   其中 rawResName 是文件名去掉扩展名（first_song.mp3 -> "first_song"）。
+
+4. 重新构建 APP，歌曲就会出现在播放列表最前面。
+
+注意：
+- 内置歌曲会增大 APK 体积（一首约 3~5MB），请自行权衡数量。
+- 请确保音频为自己录制或拥有合法授权的内容。
+- 这个说明文件可以保留，不影响功能。
