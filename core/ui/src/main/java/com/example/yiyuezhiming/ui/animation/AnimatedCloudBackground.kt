@@ -1,18 +1,11 @@
 package com.example.yiyuezhiming.ui.animation
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -26,19 +19,18 @@ import com.example.yiyuezhiming.ui.theme.DarkSurface
 import com.example.yiyuezhiming.ui.theme.PrimaryPink
 import com.example.yiyuezhiming.ui.theme.SoftBlush
 
+/**
+ * 柔和云朵背景。
+ *
+ * 性能说明：背景为静态绘制（渐变 + 云朵 + 少量爱心/爪印），Canvas 只在尺寸或主题变化时
+ * 重绘一次，不会每帧刷新，避免在所有页面持续占用 GPU 导致交互卡顿。
+ */
 @Composable
 fun AnimatedCloudBackground(
     modifier: Modifier = Modifier,
     content: @Composable BoxScope.() -> Unit
 ) {
     val dark = MaterialTheme.colorScheme.background == DarkBackground
-    val transition = rememberInfiniteTransition(label = "clouds")
-    val drift by transition.animateFloat(
-        0f,
-        1f,
-        infiniteRepeatable(tween(25000, easing = LinearEasing), RepeatMode.Restart),
-        label = "cloud-drift"
-    )
     Box(modifier.fillMaxSize()) {
         Canvas(Modifier.fillMaxSize()) {
             drawRect(
@@ -47,19 +39,19 @@ fun AnimatedCloudBackground(
                 )
             )
             val cloudColor = if (dark) Color(0x66918BA7) else CloudWhite.copy(alpha = 0.78f)
-            drawCloud(Offset(size.width * (0.18f + drift * 0.08f), size.height * 0.13f), 70f, cloudColor)
-            drawCloud(Offset(size.width * (0.82f - drift * 0.1f), size.height * 0.28f), 92f, cloudColor.copy(alpha = 0.58f))
-            drawCloud(Offset(size.width * (0.25f + drift * 0.06f), size.height * 0.78f), 110f, cloudColor.copy(alpha = 0.5f))
+            drawCloud(Offset(size.width * 0.20f, size.height * 0.13f), 70f, cloudColor)
+            drawCloud(Offset(size.width * 0.78f, size.height * 0.26f), 92f, cloudColor.copy(alpha = 0.58f))
+            drawCloud(Offset(size.width * 0.28f, size.height * 0.80f), 110f, cloudColor.copy(alpha = 0.5f))
             repeat(6) { i ->
-                val x = (i * 137f + drift * 120f) % size.width
-                val y = (i * 173f + 40f) % size.height
-                rotate(i * 23f + drift * 40f, Offset(x, y)) {
+                val x = (i * 137f + 40f) % size.width
+                val y = (i * 173f + 60f) % size.height
+                rotate(i * 23f, Offset(x, y)) {
                     drawHeart(Offset(x, y), 7f + i % 3, PrimaryPink.copy(alpha = if (dark) 0.14f else 0.20f))
                 }
             }
             repeat(4) { i ->
                 drawPaw(
-                    Offset((i * 157f + drift * 60f) % size.width, (i * 199f + 80f) % size.height),
+                    Offset((i * 157f + 50f) % size.width, (i * 199f + 90f) % size.height),
                     PrimaryPink.copy(alpha = if (dark) 0.08f else 0.14f)
                 )
             }

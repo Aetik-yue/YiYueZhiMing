@@ -57,7 +57,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.platform.LocalContext
 import coil.compose.SubcomposeAsyncImage
+import coil.request.ImageRequest
 import com.example.yiyuezhiming.model.AlbumPhoto
 import com.example.yiyuezhiming.ui.animation.AnimatedCloudBackground
 import com.example.yiyuezhiming.ui.animation.StaggeredItem
@@ -310,6 +312,7 @@ private fun AlbumPhotoTile(
     aspectRatio: Float,
     onClick: () -> Unit
 ) {
+    val context = LocalContext.current
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -325,7 +328,11 @@ private fun AlbumPhotoTile(
                 .background(Brush.linearGradient(listOf(SkyBlush, SecondaryPink.copy(alpha = 0.4f))))
         ) {
             SubcomposeAsyncImage(
-                model = photo.uri,
+                model = ImageRequest.Builder(context)
+                    .data(photo.uri)
+                    .size(300)
+                    .crossfade(true)
+                    .build(),
                 contentDescription = "相册照片",
                 modifier = Modifier
                     .matchParentSize()
